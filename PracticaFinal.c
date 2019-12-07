@@ -6,19 +6,24 @@
 
 /* Definicion de las funciones */
 int calculaAleatorios(int min, int max);
+void llegaSolicitudInv(int s);
+void llegaSolicitudQR(int s);
+void llegaCambioValores(int s);
 
 /* Funcion principal */
 int main(int argc, char const *argv[]) {
 	printf("Funka esto.\n");
 
-	/* Switch de comprobacion de los argumentos iniciales (Parte extra de parametros estáticos) */
+	/* Switch de comprobacion de los argumentos iniciales (Parte extra de parametros estáticos). */
 	int numSolicitudes = 15, numAtendedores = 1;
 	switch(argc){
 		case 1:
+            /* En el caso de que no haya parametros se muestra un mensaje y se procede con los valores por defecto. */
 			printf("No se han introducido parametros de entrada.\n");
 			printf("Se inicializaran al valor por defecto (15 solicitudes y 1 atendedorPRO).\n\n");
 		break;
 		case 2:
+            /* En el caso de que haya un solo parametro (solicitudes) se comprueba que sea válido y se cambia si así es (Si no se procede con los valores por defecto). */
             printf("Se ha introducido el valor de las solicitudes, ");
             if (atoi(argv[1]) < 1){
             	printf("pero no era valido, se introdujo un %d pero el valor desde de ser mayor que 1.\n", atoi(argv[1]));
@@ -29,9 +34,10 @@ int main(int argc, char const *argv[]) {
             }
         break;
         case 3:
+            /* En el caso de que se hayan introducido ambos valores, se comprueban y, si son válidos, se cambian (Si no se procede con los valores por defecto). */
         	printf("Se han introducido los dos valores.\n");
 
-        	printf("El valor de las solicitudes \n");
+        	printf("El valor de las solicitudes ");
          	if (atoi(argv[1]) < 1){
             	printf("no es valido, se introdujo un %d pero el valor desde de ser mayor que 1.\n", atoi(argv[1]));
             	printf("Se inicializara al valor por defecto (15 solicitudes).\n\n");
@@ -40,7 +46,7 @@ int main(int argc, char const *argv[]) {
             	numSolicitudes = atoi(argv[1]);
             }
 
-            printf("El valor de los atendedores \n");
+            printf("El valor de los atendedores ");
             if (atoi(argv[2]) < 1){
             	printf("no es valido, se introdujo un %d pero el valor desde de ser mayor que 1.\n", atoi(argv[2]));
             	printf("Se inicializara al valor por defecto (1 atendedor).\n\n");
@@ -50,11 +56,43 @@ int main(int argc, char const *argv[]) {
             }
         break;
         default:
+            /* Si se introducen más de 2 parametros, se muestra un error y se procede a la ejecución con los valores por defecto. */
         	printf("Error en los parametros de entrada (%d de 2) : Se inicializaran los parametros a los valores por defecto (15 solicitudes y 1 atendedor).\n", argc-1);
         break;
 	}
 
-	//Si pasa esto ya funka el programa
+	/* Se definen las estructuras para las entradas de las solicitudes y se enmascaran las señales. */
+    struct sigaction sInv = {0};
+    sInv.sa_handler = llegaSolicitudInv
+    struct sigaction sQR = {0};
+    sQR.sa_handler = llegaSolicitudQR;
+    if(-1 == sigaction(SIGUSR1, &sInv, NULL)  || -1 == sigaction(SIGUSR2, &sQR, NULL) ){
+        perror("Entrada de solicitudes: sigaction");
+        exit(-1);
+    }
+
+    /* Se define la estructura y se enmascara SIGPIPE para la entrada de una petición de cambio de valores (Parte extra de parametros dinámicos) */
+    struct sigaction sVal = {0};
+    sVal.sa_handler = llegaCambioValores;
+    if(-1 == sigaction(SIGPIPE, &sVal, NULL) ){
+        perror("Cambio de valores: sigaction");
+        exit(-1);
+    }
+
+    pause();
+
+}
+
+void llegaSolicitudInv(int s){
+    printf("No hay nada de solicitudes por invitacion.\n");
+}
+
+void llegaSolicitudQR(int s){
+    printf("No hay nada de solicitudes por QR.\n");
+}
+
+void llegaCambioValores(int s){
+    printf("No hay nada de cambio de valores.\n");
 }
 
 int calculaAleatorios(int min, int max){
