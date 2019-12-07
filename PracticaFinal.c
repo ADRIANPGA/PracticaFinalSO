@@ -3,12 +3,15 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
+#include <time.h>
+#include <sys/wait.h>
 
 /* Definicion de las funciones */
 int calculaAleatorios(int min, int max);
 void llegaSolicitudInv(int s);
 void llegaSolicitudQR(int s);
 void llegaCambioValores(int s);
+void escribirEnLog(char* id, char* mensaje);
 
 /* Funcion principal */
 int main(int argc, char const *argv[]) {
@@ -97,4 +100,18 @@ void llegaCambioValores(int s){
 
 int calculaAleatorios(int min, int max){
 	return rand() % (max-min+1) + min;
+}
+
+void writeLogMessage ( char * id , char * msg ) {
+    // Calculamos la hora actual
+    time_t now = time (0) ;
+    struct tm * tlocal = localtime (& now );
+    char stnow [19];
+
+    strftime ( stnow , 19 , " %d/ %m/ %y %H: %M: %S", tlocal );
+
+    // Escribimos en el log
+    logFile = fopen("registroTiempos.log" , "a");
+    fprintf(logFile , "[ %s] %s: %s\n", stnow , id , msg);
+    fclose(logFile);
 }
