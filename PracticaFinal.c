@@ -102,16 +102,16 @@ int calculaAleatorios(int min, int max){
 	return rand() % (max-min+1) + min;
 }
 
-void writeLogMessage ( char * id , char * msg ) {
+void escribirEnLog(char * id , char * mensaje){
     // Calculamos la hora actual
     time_t now = time (0) ;
     struct tm * tlocal = localtime (& now );
-    char stnow [19];
+    char stnow[19];
 
-    strftime ( stnow , 19 , " %d/ %m/ %y %H: %M: %S", tlocal );
+    strftime(stnow ,19 ," %d/ %m/ %y %H: %M: %S", tlocal);
 
     // Escribimos en el log
     logFile = fopen("registroTiempos.log" , "a");
-    fprintf(logFile , "[ %s] %s: %s\n", stnow , id , msg);
+    fprintf(logFile, "[ %s] %s: %s\n", stnow , id , mensaje);
     fclose(logFile);
 }
