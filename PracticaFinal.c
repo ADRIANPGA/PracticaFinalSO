@@ -6,19 +6,37 @@
 #include <time.h>
 #include <sys/wait.h>
 
+#define TRUE  1
+
 /* Definicion de las funciones */
 int calculaAleatorios(int min, int max);
 void llegaSolicitudInv(int s);
 void llegaSolicitudQR(int s);
 void llegaCambioValores(int s);
+void llegaFinalizacion(int s);
 void escribirEnLog(char* id, char* mensaje);
+
+/* Variables globales */
+FILE *logFile;
+int count;
+
+struct Usuario{
+	int id;
+	int atendido;
+	int tipo;
+};
+int numSolicitudes = 15;
+int numAtendedores = 1;
+
+struct Usuario *listaDeUsuarios;
+struct Usuario listaActividad[4];
 
 /* Funcion principal */
 int main(int argc, char const *argv[]) {
 	printf("Funka esto.\n");
 
 	/* Switch de comprobacion de los argumentos iniciales (Parte extra de parametros estáticos). */
-	int numSolicitudes = 15, numAtendedores = 1;
+	
 	switch(argc){
 		case 1:
             /* En el caso de que no haya parametros se muestra un mensaje y se procede con los valores por defecto. */
@@ -64,25 +82,48 @@ int main(int argc, char const *argv[]) {
         break;
 	}
 
+
+	listaDeUsuarios = (struct Usuario*)malloc(sizeof(struct Usuario)*numSolicitudes);
+
+
+
+
+
+
+
+
+
+
 	/* Se definen las estructuras para las entradas de las solicitudes y se enmascaran las señales. */
-    struct sigaction sInv = {0};
-    sInv.sa_handler = llegaSolicitudInv
-    struct sigaction sQR = {0};
-    sQR.sa_handler = llegaSolicitudQR;
-    if(-1 == sigaction(SIGUSR1, &sInv, NULL)  || -1 == sigaction(SIGUSR2, &sQR, NULL) ){
-        perror("Entrada de solicitudes: sigaction");
-        exit(-1);
-    }
+	struct sigaction sInv = {0};
+	sInv.sa_handler = llegaSolicitudInv;
+    	struct sigaction sQR = {0};
+    	sQR.sa_handler = llegaSolicitudQR;
+    	if(-1 == sigaction(SIGUSR1, &sInv, NULL)  || -1 == sigaction(SIGUSR2, &sQR, NULL) ){
+        	perror("Entrada de solicitudes: sigaction");
+        	exit(-1);
+    	}
 
-    /* Se define la estructura y se enmascara SIGPIPE para la entrada de una petición de cambio de valores (Parte extra de parametros dinámicos) */
-    struct sigaction sVal = {0};
-    sVal.sa_handler = llegaCambioValores;
-    if(-1 == sigaction(SIGPIPE, &sVal, NULL) ){
-        perror("Cambio de valores: sigaction");
-        exit(-1);
-    }
+	/* Se define la estructura para controlar la entrada de SIGINT y terminar la ejecucion */
+	struct sigaction sFin = {0};
+	sFin.sa_handler = llegaFinalizacion;
+	if( -1 == sigaction(SIGINT, &sFin, NULL) ){
+		perror("Finalizacion: sigaction");
+		exit(-1);
+	}
 
-    pause();
+   	 /* Se define la estructura y se enmascara SIGPIPE para la entrada de una petición de cambio de valores (Parte extra de parametros dinámicos) */
+   	 struct sigaction sVal = {0};
+   	 sVal.sa_handler = llegaCambioValores;
+   	 if(-1 == sigaction(SIGPIPE, &sVal, NULL) ){
+      	 	perror("Cambio de valores: sigaction");
+      	 	exit(-1);
+    	}
+	
+	while(TRUE){
+		pause();
+	}
+	printf("xd");
 
 }
 
@@ -96,6 +137,11 @@ void llegaSolicitudQR(int s){
 
 void llegaCambioValores(int s){
     printf("No hay nada de cambio de valores.\n");
+}
+
+void llegaFinalizacion(int s){
+	printf("Acabose.\n");
+	exit(0);
 }
 
 int calculaAleatorios(int min, int max){
