@@ -136,7 +136,38 @@ void llegaSolicitudQR(int s){
 }
 
 void llegaCambioValores(int s){
-    printf("No hay nada de cambio de valores.\n");
+    printf("Se ha detectado una solicitud de cambio de valores.\n");
+    int valorACambiar, nuevoValor, valido = 0;
+        do{
+            printf("¿Qué valor deseas cambiar?\n");
+            printf("1- Cambiar numero de solicitudes.\n");
+            printf("2- Cambiar numero de atendedores.\n");
+            scanf("%d", &valorACambiar);
+            if(valorACambiar != 1 && valorACambiar != 2){
+                printf("Valor introducido no valido (%d). Necesario un valor entre 1 y 2.\n", valorACambiar);
+                printf("Relanzando menu");
+                valido = -1;
+            }
+        }while(valido != -1);
+        do{
+            if(valorACambiar == 1){
+                printf("Introduce cuantas solicitudes quieres incrementar:");
+            } else{
+                printf("Introduce cuantos atendedores quieres incrementar:");
+            }
+            scanf("%d", &nuevoValor);
+            if(nuevoValor < 0){
+                printf("Valor introducido no valido (%d). Necesario un valor entre positivo.\n", nuevoValor);
+                printf("Relanzando menu");
+                valido = -1;    
+            }      
+        }while(valido != -1);
+        if(valorACambiar == 1){
+            printf("Valor de las solicitudes incrementados en %d hasta %d.\n", nuevoValor, numSolicitudes);
+        } else{
+            printf("Valor de las solicitudes incrementados en %d hasta %d.\n" nuevoValor, numAtendedores);
+        }
+        //TODO: Escribir en el log el cambio.
 }
 
 void llegaFinalizacion(int s){
