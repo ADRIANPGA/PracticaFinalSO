@@ -18,7 +18,7 @@ void escribirEnLog(char* id, char* mensaje);
 
 /* Variables globales */
 FILE *logFile;
-int count;
+int contatendedor;
 
 struct Usuario{
 	int id;
@@ -30,6 +30,7 @@ int numAtendedores = 1;
 
 struct Usuario *listaDeUsuarios;
 struct Usuario listaActividad[4];
+struct Usuario *listaCoordinadores;
 
 /* Funcion principal */
 int main(int argc, char const *argv[]) {
@@ -82,17 +83,9 @@ int main(int argc, char const *argv[]) {
         break;
 	}
 
-
+    int numCoordinadores= (int) numeroSolicitudes/4;
 	listaDeUsuarios = (struct Usuario*)malloc(sizeof(struct Usuario)*numSolicitudes);
-
-
-
-
-
-
-
-
-
+    listaCoordinadores = (struct Usuario*)malloc(sizeof(struct Usuario)*numCoordinadores);
 
 	/* Se definen las estructuras para las entradas de las solicitudes y se enmascaran las señales. */
 	struct sigaction sInv = {0};
