@@ -15,6 +15,7 @@
 int calculaAleatorios(int min, int max);
 void llegaSolicitudInv(int s);
 void llegaSolicitudQR(int s);
+void *atenderSolicitudes(void *ptr);
 void llegaCambioValores(int s);
 void llegaFinalizacion(int s);
 void escribirEnLog(char* id, char* mensaje);
