@@ -19,12 +19,21 @@ void escribirEnLog(char* id, char* mensaje);
 /* Variables globales */
 FILE *logFile;
 int contatendedor;
+int contadorsolicitudes;
 
 struct Usuario{
 	int id;
 	int atendido;
+    //0->Coordinador 1->No coordinador
 	int tipo;
 };
+
+struct Atendedor{
+    //0->QR 1->Inv 2->PRO
+    int tipo;
+    int solatendidas;
+};
+
 int numSolicitudes = 15;
 int numAtendedores = 1;
 
@@ -90,12 +99,12 @@ int main(int argc, char const *argv[]) {
 	/* Se definen las estructuras para las entradas de las solicitudes y se enmascaran las señales. */
 	struct sigaction sInv = {0};
 	sInv.sa_handler = llegaSolicitudInv;
-    	struct sigaction sQR = {0};
-    	sQR.sa_handler = llegaSolicitudQR;
-    	if(-1 == sigaction(SIGUSR1, &sInv, NULL)  || -1 == sigaction(SIGUSR2, &sQR, NULL) ){
-        	perror("Entrada de solicitudes: sigaction");
-        	exit(-1);
-    	}
+    struct sigaction sQR = {0};
+    sQR.sa_handler = llegaSolicitudQR;
+    if(-1 == sigaction(SIGUSR1, &sInv, NULL)  || -1 == sigaction(SIGUSR2, &sQR, NULL) ){
+        perror("Entrada de solicitudes: sigaction");
+        exit(-1);
+    }
 
 	/* Se define la estructura para controlar la entrada de SIGINT y terminar la ejecucion */
 	struct sigaction sFin = {0};
@@ -122,10 +131,22 @@ int main(int argc, char const *argv[]) {
 
 void llegaSolicitudInv(int s){
     printf("No hay nada de solicitudes por invitacion.\n");
+    if(contadorsolicitudes==numSolicitudes){
+        printf("Solicitud rechazada\nLa cola esta llena\n");
+    }else{
+        contadorsolicitudes++;
+    }
+    sleep(4);
 }
 
 void llegaSolicitudQR(int s){
     printf("No hay nada de solicitudes por QR.\n");
+    if(contadorsolicitudes==numSolicitudes){
+        printf("Solicitud rechazada\nLa cola esta llena\n");
+    }else{
+        contadorsolicitudes++;
+    }
+    sleep(4);
 }
 
 void llegaCambioValores(int s){
