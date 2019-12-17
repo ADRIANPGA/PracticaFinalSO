@@ -1,10 +1,13 @@
 /* Inclusion de las librerias necesarias */
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <signal.h>
-#include <time.h>
-#include <sys/wait.h>
+# include <stdio.h>
+# include <stdlib.h>
+# include <ctype.h>
+# include <time.h>
+# include <pthread.h>
+# include <signal.h>
+# include <sys/types.h>
+# include <sys/wait.h>
+# include <unistd.h>
 
 #define TRUE  1
 
@@ -206,6 +209,7 @@ void *atenderSolicitudes(void *ptr){
 }
 
 void llegaCambioValores(int s){
+    
     printf("Se ha detectado una solicitud de cambio de valores.\n");
     int valorACambiar, nuevoValor, valido = 0;
         do{
@@ -237,7 +241,7 @@ void llegaCambioValores(int s){
         } else{
             printf("Valor de las solicitudes incrementados en %d hasta %d.\n" nuevoValor, numAtendedores);
         }
-        //TODO: Escribir en el log el cambio.
+        //TODO Escribir en el log el cambio.
 }
 
 void llegaFinalizacion(int s){
