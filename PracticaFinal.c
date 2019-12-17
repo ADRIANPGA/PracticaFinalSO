@@ -23,20 +23,25 @@ int contadorsolicitudes;
 
 struct Usuario{
 	int id;
+    //0->No 1->Si
 	int atendido;
-    //0->Coordinador 1->No coordinador
+    //0->No coordinador 1->Coordinador
 	int tipo;
 };
 
 struct Atendedor{
-    //0->QR 1->Inv 2->PRO
+    //0->Inv 1->QR 2->PRO
     int tipo;
     int solatendidas;
 };
 
+/*Es tupoAt porque si no @DeLaHera llora*/
+int tipoAt[3] = {0,1,2};
+
 int numSolicitudes = 15;
 int numAtendedores = 1;
 
+struct Atenderdor *listaAtendedores;
 struct Usuario *listaDeUsuarios;
 struct Usuario listaActividad[4];
 struct Usuario *listaCoordinadores;
@@ -95,6 +100,7 @@ int main(int argc, char const *argv[]) {
     int numCoordinadores= (int) numeroSolicitudes/4;
 	listaDeUsuarios = (struct Usuario*)malloc(sizeof(struct Usuario)*numSolicitudes);
     listaCoordinadores = (struct Usuario*)malloc(sizeof(struct Usuario)*numCoordinadores);
+    listaAtendedores = (struct Atendedor*)malloc(sizeof(struct Atendedor)*(numAtendedores+2));
 
 	/* Se definen las estructuras para las entradas de las solicitudes y se enmascaran las señales. */
 	struct sigaction sInv = {0};
@@ -114,18 +120,56 @@ int main(int argc, char const *argv[]) {
 		exit(-1);
 	}
 
-   	 /* Se define la estructura y se enmascara SIGPIPE para la entrada de una petición de cambio de valores (Parte extra de parametros dinámicos) */
-   	 struct sigaction sVal = {0};
-   	 sVal.sa_handler = llegaCambioValores;
-   	 if(-1 == sigaction(SIGPIPE, &sVal, NULL) ){
-      	 	perror("Cambio de valores: sigaction");
-      	 	exit(-1);
-    	}
-	
+   	/* Se define la estructura y se enmascara SIGPIPE para la entrada de una petición de cambio de valores (Parte extra de parametros dinámicos) */
+   	struct sigaction sVal = {0};
+   	sVal.sa_handler = llegaCambioValores;
+   	if(-1 == sigaction(SIGPIPE, &sVal, NULL) ){
+      	perror("Cambio de valores: sigaction");
+      	exit(-1);
+    }
+
+    /*Incializamos los atendedores*/
+    int i;
+    for (i = 0; i < (numAtendedores+2); i++) {
+        switch (i){
+            case 0:
+                *(listaAtendedores+i)->tipo=0;
+                *(listaAtendedores+i)->solatendidas=0;
+                break;
+            case 1:
+                *(listaAtendedores+i)->tipo=1;
+                *(listaAtendedores+i)->solatendidas=0;
+                break;
+            case 2:
+                *(listaAtendedores+i)->tipo=2;
+                *(listaAtendedores+i)->solatendidas=0;
+                break;
+        }
+    }
+
+    /*J representa el contador de ID's*/
+    int j=0;
+    for (i = 0; i < numSolicitudes; i++) {
+           *(listaDeUsuarios+i)->id=j;
+           *(listaDeUsuarios+i)->atendido=0;
+           *(listaDeUsuarios+i)->tipo=0
+           j++;
+    }
+
+    pthread *atpros;
+    pthread atqr,atinvitacion; 
+	pthread_create(&atinvitacion, NULL, atenderSolicitudes, (void *)&tipoAt[0]);
+    pthread_create(&atqr, NULL, atenderSolicitudes, (void *)&tipoAt[1]);
+    for(i=0;i<numAtendedores;i++){
+        pthread_create(&(*(atpros+i)), NULL, atenderSolicitudes, (void *)&tipoAt[2]);
+    }
+
 	while(TRUE){
 		pause();
 	}
 	printf("xd");
+
+    return 0;
 
 }
 
@@ -147,6 +191,18 @@ void llegaSolicitudQR(int s){
         contadorsolicitudes++;
     }
     sleep(4);
+}
+
+void *atenderSolicitudes(void *ptr){
+    //TODO acabar la practica
+    switch(ptr){
+        case 0:
+        case 1:
+        case 2:
+        default:
+            printf("ERROR 404\n");
+    }
+
 }
 
 void llegaCambioValores(int s){
