@@ -51,11 +51,9 @@ struct Usuario listaActividad[4];
 struct Usuario *listaCoordinadores;
 
 /* Funcion principal */
-int main(int argc, char const *argv[]) {
-	printf("Funka esto.\n");
+int main(int argc, char const *argv[]){
 
 	/* Switch de comprobacion de los argumentos iniciales (Parte extra de parametros estáticos). */
-	
 	switch(argc){
 		case 1:
             /* En el caso de que no haya parametros se muestra un mensaje y se procede con los valores por defecto. */
@@ -82,7 +80,7 @@ int main(int argc, char const *argv[]) {
             	printf("no es valido, se introdujo un %d pero el valor desde de ser mayor que 1.\n", atoi(argv[1]));
             	printf("Se inicializara al valor por defecto (15 solicitudes).\n\n");
             } else{
-            	printf("valor cambiado a %d.\n\n", atoi(argv[1]));
+            	printf("sera cambiado a %d.\n\n", atoi(argv[1]));
             	numSolicitudes = atoi(argv[1]);
             }
 
@@ -91,7 +89,7 @@ int main(int argc, char const *argv[]) {
             	printf("no es valido, se introdujo un %d pero el valor desde de ser mayor que 1.\n", atoi(argv[2]));
             	printf("Se inicializara al valor por defecto (1 atendedor).\n\n");
             } else{
-            	printf("valor cambiado a %d.\n\n", atoi(argv[2]));
+            	printf("sera cambiado a %d.\n\n", atoi(argv[2]));
             	numAtendedores = atoi(argv[2]);
             }
         break;
@@ -168,13 +166,12 @@ int main(int argc, char const *argv[]) {
         pthread_create(&(*(atpros+i)), NULL, atenderSolicitudes, (void *)&tipoAt[2]);
     }
 
+    /* Bucle en espera de llegada de señales */
 	while(TRUE){
 		pause();
 	}
-	printf("xd");
 
     return 0;
-
 }
 
 void llegaSolicitudInv(int s){
@@ -198,7 +195,7 @@ void llegaSolicitudQR(int s){
 }
 
 void *atenderSolicitudes(void *ptr){
-    //TODO acabar la practica
+    //TODO Avanzar
     switch(ptr){
         case 0:
         case 1:
