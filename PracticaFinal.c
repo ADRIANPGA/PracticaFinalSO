@@ -144,7 +144,7 @@ int main(int argc, char const *argv[]) {
                 *(listaAtendedores+i)->tipo=1;
                 *(listaAtendedores+i)->solatendidas=0;
                 break;
-            case 2:
+            default:
                 *(listaAtendedores+i)->tipo=2;
                 *(listaAtendedores+i)->solatendidas=0;
                 break;
