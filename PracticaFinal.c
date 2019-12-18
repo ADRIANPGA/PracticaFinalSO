@@ -195,13 +195,13 @@ void llegaSolicitudQR(int s){
 }
 
 void *atenderSolicitudes(void *ptr){
-    //TODO Avanzar
+    //TODO Funcion del hilo que descarta las solicitudes (o no)
     switch(ptr){
         case 0:
         case 1:
         case 2:
         default:
-            printf("ERROR 404\n");
+            printf("ERROR\n");
     }
 
 }
@@ -235,8 +235,10 @@ void llegaCambioValores(int s){
             }      
         }while(valido != -1);
         if(valorACambiar == 1){
+            numSolicitudes += nuevoValor;
             printf("Valor de las solicitudes incrementados en %d hasta %d.\n", nuevoValor, numSolicitudes);
         } else{
+            numAtendedores += nuevoValor;
             printf("Valor de las solicitudes incrementados en %d hasta %d.\n" nuevoValor, numAtendedores);
         }
         //TODO Escribir en el log el cambio.
