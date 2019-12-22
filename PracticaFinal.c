@@ -14,9 +14,9 @@
 
 /* Definicion de las funciones */
 int calculaAleatorios(int min, int max);
-void llegaSolicitudInv(int s);
-void llegaSolicitudQR(int s);
-void *atenderSolicitudes(void *ptr);
+void llegaSolicitud(int s);
+void *accionesSolicitud(void *ptr);
+void *accionesAtendedor(void *ptr);
 void llegaCambioValores(int s);
 void llegaFinalizacion(int s);
 void escribirEnLog(char* id, char* mensaje);
@@ -39,7 +39,7 @@ struct Usuario{
 struct Atendedor{
     //0->Inv 1->QR 2->PRO
     int tipo;
-    int solatendidas;
+    int solAtendidas;
   	pthread_t hiloAtendedor; /*Hilo ejecuta cada Atendedor*/
 };
 
@@ -114,20 +114,20 @@ int main(int argc, char const *argv[]){
 	
   	srand(getpid());
     int numCoordinadores= (int) numeroSolicitudes/4;
-		listaDeUsuarios = (struct Usuario*)malloc(sizeof(struct Usuario)*numSolicitudes);
+	listaDeUsuarios = (struct Usuario*)malloc(sizeof(struct Usuario)*numSolicitudes);
     listaCoordinadores = (struct Usuario*)malloc(sizeof(struct Usuario)*numCoordinadores);
     listaAtendedores = (struct Atendedor*)malloc(sizeof(struct Atendedor)*(numAtendedores+2));
   	pthread_mutex_init(&mutexCola, NULL);
 
 	/* Se definen las estructuras para las entradas de las solicitudes y se enmascaran las señales. */
-	struct sigaction sInv = {0};
+    struct sigaction sInv = {0};
 	sInv.sa_handler = llegaSolicitud;
-  struct sigaction sQR = {0};
-  sQR.sa_handler = llegaSolicitud;
-  if(-1 == sigaction(SIGUSR1, &sInv, NULL)  || -1 == sigaction(SIGUSR2, &sQR, NULL) ){
+    struct sigaction sQR = {0};
+    sQR.sa_handler = llegaSolicitud;
+    if(-1 == sigaction(SIGUSR1, &sInv, NULL)  || -1 == sigaction(SIGUSR2, &sQR, NULL) ){
       perror("Entrada de solicitudes: sigaction");
       exit(-1);
-  }
+    }
 
 	/* Se define la estructura para controlar la entrada de SIGINT y terminar la ejecucion */
 	struct sigaction sFin = {0};
@@ -182,7 +182,7 @@ int main(int argc, char const *argv[]){
     pthread *atpros;
     pthread atqr,atinvitacion; 
   	pthread_mutex_lock(&mutexcreahilos);
-		pthread_create(&atinvitacion, NULL, atenderSolicitudes, (void *)&tipoAt[0]);
+	pthread_create(&atinvitacion, NULL, atenderSolicitudes, (void *)&tipoAt[0]);
     pthread_create(&atqr, NULL, atenderSolicitudes, (void *)&tipoAt[1]);
     for(i=0;i<numAtendedores;i++){
         pthread_create(&(*(atpros+i)), NULL, atenderSolicitudes, (void *)&tipoAt[2]);
@@ -196,6 +196,16 @@ int main(int argc, char const *argv[]){
     printf("Introduzca 'kill -2 PID' en el terminal si desea finalizar el programa.\n");
     printf("Pulse intro para continuar...\n");
    	printf("---------------------------------------------------------------------------------------------------------------------------------------\n");
+
+    /* Inicializamos el Fichero de Log */
+    logFile = fopen ( "registroAplicacion.log", "a" );
+    
+    /* Guardamos en el log la apertura de la aplicacion Tsunami Democratico*/
+    char aperturaLog[100];
+    char tsunamiDemocratic[100];
+    sprintf(tsunamiDemocratic, "Tsunami Democratico");
+    sprintf(aperturaLog, "Apertura");
+    writeLogMessage(tsunamiDemocratic, aperturaLog);
    
     /* Bucle en espera de llegada de señales */
 		while(TRUE){
@@ -227,13 +237,58 @@ void llegaSolicitud(int signal){
   	pthread_mutex_unlock(&mutexColaSolicitudes);
 }
 
+void *accionesSolicitud(void *ptr){
 
-void *atenderSolicitudes(void *ptr){
+}
+
+
+void *accionesAtendedor(void *ptr){
     //TODO Funcion del hilo que descarta las solicitudes (o no)
+    int i;
+    /*Variable que representa el id del usuario a tratar*/
+    int solicitudElegida;
+    /*Los atendedores se quedaran en un bucle infinito atendiendo solicitudes*/
     switch(ptr){
         case 0:
+            while(TRUE){
+                for(i=0;i<numSolicitudes;i++){
+                    /*Se comprueba que el atendedor puede atender dicha solicitud*/
+                    if(listaDeUsuarios[i].tipo==0 && listaDeUsuarios[i].atendido==0){
+                        listaDeUsuarios[i].atendido=1;
+                    }
+
+                }
+                /*En este caso no existen solicitudes por invitacion, atendera la que mas tiempo lleve*/
+                for(i=0;i<numSolicitudes;i++){
+                    listaDeUsuarios[i].atendido=1;
+                }
+                /*Se comprueba si al atendedor le toca atender tomar cafe*/
+                if(listaAtendedores[0].solAtendidas%5 == 0){
+                    /* Se registra la entrada al cafe */
+                    char tomarCafe[100];
+                    sprintf(tomarCafe, "El atender de invitaciones tiene que tomar cafe.");
+                    //writeLogMessage(entradaMecanico, entradaCafe);
+                    
+                    /* Duerme 20 segundos */
+                    sleep(10);
+            
+                    /* Se registra la salida al café */
+                    char acabarCafe[100];
+                    sprintf(acabarCafe, "El atendedor de invitaciones regresa de tomar cafe.");
+                    //writeLogMessage(entradaMecanico, salidaCafe);
+                }
+            }
         case 1:
         case 2:
+            while(TRUE){
+                for(i=0;i<numSolicitudes;i++){
+                    //bloquar la cola de solicitudes?
+
+                }
+
+                /*Se comprueba si al atendedor le toca atender tomar cafe*/
+                if(trabajadores)
+            }
         default:
             printf("ERROR\n");
     }
