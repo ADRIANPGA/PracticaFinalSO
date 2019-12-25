@@ -43,7 +43,7 @@ struct Atendedor{
   	pthread_t hiloAtendedor; /*Hilo ejecuta cada Atendedor*/
 };
 
-/*Es tupoAt porque si no @DeLaHera llora*/
+/*Es tipoAt porque si no @DeLaHera llora*/
 int tipoAt[3] = {0,1,2};
 
 int numSolicitudes = 15;
@@ -57,7 +57,7 @@ struct Usuario *listaCoordinadores;
 /* Para controlar el acceso a los recursos compartidos utilizamos dos semáforos (mutex) */
 pthread_mutex_t mutexCreaHilos;
 pthread_mutex_t mutexColaSolicitudesQR;
-pthread_mutex_t mutexColaSolicitudesInv;
+pthread_mutex_t mutexColaSolicitudesInv; //TODO Aqui solo deberia haber un mutex
 pthread_mutex_t mutexLog;
 pthread_mutex_t mutex5;
 
@@ -287,7 +287,7 @@ void *accionesAtendedor(void *ptr){
                 }
 
                 /*Se comprueba si al atendedor le toca atender tomar cafe*/
-                if(trabajadores)
+                if(trabajadores) //TODO A medias
             }
         default:
             printf("ERROR\n");
@@ -330,10 +330,10 @@ void llegaCambioValores(int s){
             numAtendedores += nuevoValor;
             printf("Valor de las solicitudes incrementados en %d hasta %d.\n" nuevoValor, numAtendedores);
         }
-  			char mensajeLog[250];
-  			sprintf(mensajeLog, "Se ha cambiado el valor de solicitudes incrementandolo en %d hasta %d.", nuevoValor, numAtendedores);
-  			escribirEnLog("AVISO", mensajeLog);
-        //TODO Realizar efectivamente el cambio
+  		char mensajeLog[250];
+  		sprintf(mensajeLog, "Se ha cambiado el valor de solicitudes incrementandolo en %d hasta %d.", nuevoValor, numAtendedores);
+  		escribirEnLog("AVISO", mensajeLog);
+        //TODO Realizar efectivamente el cambio añadiendo los nuevos hilos atendedores o de solicitudes que sean
 }
 
 
@@ -376,6 +376,6 @@ void escribirEnLog(char * id , char * mensaje){
     fclose(logFile);
 
   	/* Se libera el mutex para que otros hilos puedan escribir en el log */
-		pthread_mutex_unlock(&mutexLog);
+	pthread_mutex_unlock(&mutexLog);
 }
 
