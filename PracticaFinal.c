@@ -33,7 +33,9 @@ struct Usuario{
 	int atendido;
 	//0->Invitacion 1->QR
 	int tipo;
-  pthread_t hiloUsusario; /*Hilo que ejecuta cada Usuario*/
+  	//0->Todo OK 1->Error en datos personales 2->Antecedentes
+  	int tipoAtencion;
+  	pthread_t hiloUsuario; /*Hilo que ejecuta cada Usuario*/
 };
 
 struct Atendedor{
@@ -48,8 +50,8 @@ int tipoAt[3] = {0,1,2};
 int numSolicitudes = 15;
 int numAtendedores = 1;
 
-struct Atenderdor *listaAtendedores;
-struct Usuario *listaDeUsuarios;
+struct Atendedor *listaAtendedores;
+struct Usuario *listaDeUsuarios;//esto es lo mismo listaDeSolicitudes
 struct Usuario listaActividad[4];
 struct Usuario *listaCoordinadores;
 
@@ -57,7 +59,8 @@ struct Usuario *listaCoordinadores;
 pthread_mutex_t mutexCreaHilos;
 pthread_mutex_t mutexColaSolicitudes;
 pthread_mutex_t mutexLog;
-pthread_mutex_t mutex5;
+pthread_mutex_t mutexSolicitudes;
+//pthread_mutex_t mutex6;
 
 
 /* --------------------------- MAIN --------------------------- */
@@ -173,26 +176,27 @@ int main(int argc, char const *argv[]){
 		   *(listaDeUsuarios+i)->id=j;
 		   *(listaDeUsuarios+i)->atendido=0;
 		   *(listaDeUsuarios+i)->tipo=0
+               *(listaDeUsuarios+i)->tipoAtencion=0;
 		   j++;
 	}
 		
 	pthread *atpros;
 	pthread atqr,atinvitacion; 
 	pthread_mutex_lock(&mutexcreahilos);
-	pthread_create(&atinvitacion, NULL, atenderSolicitudes, (void *)&tipoAt[0]);
-	pthread_create(&atqr, NULL, atenderSolicitudes, (void *)&tipoAt[1]);
+	pthread_create(&listaDeAtendedores[0].hiloAtendedor, NULL, atenderSolicitudes, (void *)&tipoAt[0]);
+	pthread_create(&listaDeAtendedores[1].hiloAtendedor, NULL, atenderSolicitudes, (void *)&tipoAt[1]);
 	for(i=0;i<numAtendedores;i++){
-		pthread_create(&(*(atpros+i)), NULL, atenderSolicitudes, (void *)&tipoAt[2]);
+		pthread_create(&listaDeAtendedores[i].hiloAtendedor, NULL, atenderSolicitudes, (void *)&tipoAt[2]);
 	}
 	pthread_mutex_unlock(&mutexCreaHilos);
   
 	/* Se imprime el encabezado y se espera un intro para empezar a recibir señales */
-		printf("Se podra simular la entrada de invitaciones al programa mediante el uso de señales.\n");
-		printf("Introduzca 'kill -10 PID' en el terminal si desea realizar una solicitud por invitacion.\n");
-		printf("Introduzca 'kill -12 PID' en el terminal si desea realizar una solicitud por QR.\n");
+	printf("Se podra simular la entrada de invitaciones al programa mediante el uso de señales.\n");
+	printf("Introduzca 'kill -10 PID' en el terminal si desea realizar una solicitud por invitacion.\n");
+	printf("Introduzca 'kill -12 PID' en el terminal si desea realizar una solicitud por QR.\n");
 	printf("Introduzca 'kill -13 PID' en el terminal si desea realizar un cambio de los valores.\n")
-		printf("Introduzca 'kill -2 PID' en el terminal si desea finalizar el programa.\n");
-		printf("Pulse intro para continuar...\n");
+	printf("Introduzca 'kill -2 PID' en el terminal si desea finalizar el programa.\n");
+	printf("Pulse intro para continuar...\n");
 	printf("---------------------------------------------------------------------------------------------------------------------------------------\n");
   
 	/* Guardamos en el log la apertura de la aplicacion Tsunami Democratico*/
@@ -229,7 +233,58 @@ void llegaSolicitud(int signal){
 }
 
 void *accionesSolicitud(void *ptr){ 
-	//TODO
+	//TODO Decidir si se entra o no en una actividad cultural y toda la vaina relacionada con eso
+  	/* Se guarda para escribir en el Log el id del atendedor */
+	int identificadorSolicitud = (int)ptr;
+	char idSolicitud[100];
+	sprintf(idSolicitud, "Solicitud_%d: ", identificadorSolicitud+1);
+  	int errorSistema;
+  	int i;
+  	for(i=0; i<numSolicitudes; i++){
+        int tipo = listaDeUsuarios[i].tipoAtencion;
+	  char mensajeLog[100];
+        switch(tipo){
+            /* Solicitud que llega de manera correcta */
+            case 0:
+            while(TRUE){
+              pthread_mutex_lock(&mutexSolicitudes);
+              /* Se comprueba que la solicitud que llega es la que es completamente correcta */
+              errorSistema = calculaAleatorios(0,100);
+                   if(errorSistema >= 50){
+                   	sprintf(mensajeLog,"El usuario no puede pertenecer a una actividad cultural. Es expulsado!");
+                   	pthread_exit(NULL);	
+                  }else{
+                     //TODO sera asociado a una actividad, si la cola esta vacia
+                   }
+            } 
+            break;
+
+            /* Solicitud que llega con errores de datos personales */
+            case 1:
+            while(TRUE){	
+                    pthread_mutex_lock(&mutexSolicitudes);
+			  errorSistema = calculaAleatorios(0,100);
+                   	if(errorSistema >= 50){
+                          	sprintf(mensajeLog,"El usuario no puede pertenecer a una actividad cultural. Es expulsado!");
+                      		pthread_exit(NULL);	
+                    	}else{
+                        	 //TODO sera asociado a una actividad, si la cola esta vacia
+                        }
+      	}
+            break;
+
+            /* Solicitud que llega con errores de todo tipo. */
+            case 2:
+            while(TRUE){
+                  pthread_exit(NULL);  	
+              	sprintf(mensajeLog,"");
+            }
+            break;
+        }
+  		escribirEnLog(idSolicitud, mensajeLog);
+  		pthread_mutex_unlock(&mutexSolicitudes);
+      }
+  	
 }
 
 
@@ -242,7 +297,7 @@ void *accionesAtendedor(void *ptr){
 	/* Se guarda para escribir en el Log el id del atendedor */
 	int identificadorAtendedor = (int)ptr;
 	char idAtendedor[100];
-	sprintf(idAtendedor, "Atendedor_%d ", identificadorAtendedor+1);
+	sprintf(idAtendedor, "Atendedor_%d: ", identificadorAtendedor+1);
   
 	/*Los atendedores se quedaran en un bucle infinito atendiendo solicitudes*/
 	/*Id del antendedor*/
@@ -257,41 +312,78 @@ void *accionesAtendedor(void *ptr){
 					  //TODO meter en el log que atendedor atiende que solicitud
 						int numAle = calculaAleatorios(0,100);
 						int tiempoDormir;
+                                	char mensajeLog[100];
 						if(numAle<70){
 							tiempoDormir = calculaAleatorios(1,4);
+                                      	sleep(tiempoDormir);
+                                      	sprintf(mensajeLog,"La solicitud tiene todo en orden, atencion correcta.");
+                                      	listaDeUsuarios[i].tipoAtencion=0;
 							//TODO notificar que se ha realizado una atencion correcta
 							//despues puede solicitar o no entrar en una actividad cultural
 						} else if(numAle<90) {
 							tiempoDormir = calculaAleatorios(2,6);
+                                      	sleep(tiempoDormir);
+                                          sprintf(mensajeLog,"La solicitud tiene errores en los datos personales, atencion correcta.");
+                                      	listaDeUsuarios[i].tipoAtencion=1;
 							//TODO notificar error en datos personales 
 							//despues puede participar o no en una actividad cultural
 						} else {
 							tiempoDormir = calculaAleatorios(6,10);
-						  	//TODO notificar que tiene antecedentes
+                                      	sleep(tiempoDormir);
+                                       	sprintf(mensajeLog,"La solicitud se corresponde con un usuario con antecedentes penales, atencion correcta.");
+						  	listaDeUsuarios[i].tipoAtencion=2;
 						  	//TODO no puede hacer mas y despues de ser atendida abandona la cola
 						}
 					}
 					  
-						char mensajeLog[100];
-						sprintf(mensajeLog, "El atendedor ha atendido la solicitud correctamente");
-						escribirEnLog(idAtendedor, mensajeLog);
-					  
-						listaDeUsuarios[i].atendido=1;
-						pthread_mutex_unlock(&mutexColaSolicitudes);
+                              
+                              escribirEnLog(idAtendedor, mensajeLog);
+
+                              listaDeUsuarios[i].atendido=1;
+                              pthread_mutex_unlock(&mutexColaSolicitudes);
 					}
 				}
 				/*En este caso no existen solicitudes por invitacion, atendera la que mas tiempo lleve*/
 				for(i=0;i<numSolicitudes;i++){
-					/* Cambiamos el valor de atendido */
-					listaDeUsuarios[i].atendido=1;
-					pthread_mutex_unlock(&mutexColaSolicitudes);
+					if(listaDeUsuarios[i].tipo==0 && listaDeUsuarios[i].atendido==0){
+					  //TODO meter en el log que atendedor atiende que solicitud
+						int numAle = calculaAleatorios(0,100);
+						int tiempoDormir;
+                                	char mensajeLog[100];
+						if(numAle<70){
+							tiempoDormir = calculaAleatorios(1,4);
+                                      	sleep(tiempoDormir);
+                                      	sprintf(mensajeLog,"La solicitud tiene todo en orden, atencion correcta.");
+							listaDeUsuarios[i].tipoAtencion=0;
+							//despues puede solicitar o no entrar en una actividad cultural
+						} else if(numAle<90) {
+							tiempoDormir = calculaAleatorios(2,6);
+                                      	sleep(tiempoDormir);
+                                          sprintf(mensajeLog,"La solicitud tiene errores en los datos personales, atencion correcta.");
+                                      	listaDeUsuarios[i].tipoAtencion=1;
+							//despues puede participar o no en una actividad cultural
+						} else {
+							tiempoDormir = calculaAleatorios(6,10);
+                                      	sleep(tiempoDormir);
+                                       	sprintf(mensajeLog,"La solicitud se corresponde con un usuario con antecedentes, atencion correcta.");
+                                      	listaDeUsuarios[i].tipoAtencion=2;
+						  	//TODO no puede hacer mas y despues de ser atendida abandona la cola
+						}
+					}
+					  
+                              
+                              escribirEnLog(idAtendedor, mensajeLog);
+
+                              listaDeUsuarios[i].atendido=1;
+                              pthread_mutex_unlock(&mutexColaSolicitudes);
+					}
 				}
 			}
 			/*Se comprueba si al atendedor le toca atender tomar cafe*/
 			if(listaAtendedores[0].solAtendidas%5 == 0){
 				/* Se registra la entrada al cafe */
 				char tomarCafe[100];
-			sprintf(tomarCafe, "El atendedor de invitaciones se va a tomar cafe.");
+				sprintf(tomarCafe, "El atendedor de invitaciones se va a tomar cafe.");
 				escribirEnLog(idAtendedor, tomarCafe);
 
 				/* Duerme 10 segundos */
@@ -304,24 +396,76 @@ void *accionesAtendedor(void *ptr){
 			}
 			break;
 		case 1:
-			/* Atendedor de tipo QR */
+			/* Atendedor de tipo QR. */
 			while(TRUE){
 				pthread_mutex_lock(&mutexColaSolicitudes);
 				for(i=0;i<numSolicitudes;i++){
-					/*Se comprueba que el atendedor puede atender dicha solicitud*/
-					if(listaDeUsuarios[i].tipo==1 && listaDeUsuarios[i].atendido==0){
-						listaDeUsuarios[i].atendido=1;
-						char mensajeLog[100];
-						sprintf(mensajeLog, "El atendedor ha atendido la solicitud correctamente");
-						escribirEnLog(idAtendedor, mensajeLog);
-						pthread_mutex_unlock(&mutexColaSolicitudes);
+					/* Se comprueba que el atendedor puede atender dicha solicitud. */
+					if(listaDeUsuarios[i].tipo==0 && listaDeUsuarios[i].atendido==0){
+					  //TODO meter en el log que atendedor atiende que solicitud
+						int numAle = calculaAleatorios(0,100);
+						int tiempoDormir;
+                                	char mensajeLog[100];
+						if(numAle<70){
+							tiempoDormir = calculaAleatorios(1,4);
+                                      	sleep(tiempoDormir);
+                                      	sprintf(mensajeLog,"La solicitud tiene todo en orden, atencion correcta.");
+                                      	listaDeUsuarios[i].tipoAtencion=0;
+							//TODO despues puede solicitar o no entrar en una actividad cultural
+						} else if(numAle<90) {
+							tiempoDormir = calculaAleatorios(2,6);
+                                      	sleep(tiempoDormir);
+                                          sprintf(mensajeLog,"La solicitud tiene errores en los datos personales, atencion correcta.");
+                                      	listaDeUsuarios[i].tipoAtencion=1;
+							//TODO despues puede participar o no en una actividad cultural
+						} else {
+							tiempoDormir = calculaAleatorios(6,10);
+                                      	sleep(tiempoDormir);
+                                       	sprintf(mensajeLog,"La solicitud se corresponde con un usuario con antecedentes, atencion correcta.");
+                                      	listaDeUsuarios[i].tipoAtencion=2;
+						  	//TODO no puede hacer mas y despues de ser atendida abandona la cola
+						}
+					}
+                          
+                              escribirEnLog(idAtendedor, mensajeLog);
+
+                              listaDeUsuarios[i].atendido=1;
+                              pthread_mutex_unlock(&mutexColaSolicitudes);
 					}
 				}
-				/*En este caso no existen solicitudes por invitacion, atendera la que mas tiempo lleve*/
+				/* En este caso no existen solicitudes por invitacion, se atendera la que mas tiempo lleve. */
 				for(i=0;i<numSolicitudes;i++){
-					/* Cambiamos el valor de atendido */
-					listaDeUsuarios[i].atendido=1;
-					pthread_mutex_lock(&mutexColaSolicitudes);
+					if(listaDeUsuarios[i].tipo==0 && listaDeUsuarios[i].atendido==0){
+					  //TODO meter en el log que atendedor atiende que solicitud
+						int numAle = calculaAleatorios(0,100);
+						int tiempoDormir;
+                                	char mensajeLog[100];
+						if(numAle<70){
+							tiempoDormir = calculaAleatorios(1,4);
+                                      	sleep(tiempoDormir);
+                                      	sprintf(mensajeLog,"La solicitud tiene todo en orden, atencion correcta.");
+                                      	listaDeUsuarios[i].tipoAtencion=0;
+							//TODO  despues puede solicitar o no entrar en una actividad cultural
+						} else if(numAle<90) {
+							tiempoDormir = calculaAleatorios(2,6);
+                                      	sleep(tiempoDormir);
+                                          sprintf(mensajeLog,"La solicitud tiene errores en los datos personales, atencion correcta.");
+                                      	listaDeUsuarios[i].tipoAtencion=1;
+							//TODO despues puede participar o no en una actividad cultural
+						} else {
+							tiempoDormir = calculaAleatorios(6,10);
+                                      	sleep(tiempoDormir);
+                                       	sprintf(mensajeLog,"La solicitud se corresponde con un usuario con antecedentes, atencion correcta.");
+                                      	listaDeUsuarios[i].tipoAtencion=2;
+						  	//TODO no puede hacer mas y despues de ser atendida abandona la cola
+						}
+					}
+                              
+                              escribirEnLog(idAtendedor, mensajeLog);
+
+                              listaDeUsuarios[i].atendido=1;
+                              pthread_mutex_unlock(&mutexColaSolicitudes);
+					}
 				}
 			}
 			/*Se comprueba si al atendedor le toca atender tomar cafe*/
@@ -346,11 +490,39 @@ void *accionesAtendedor(void *ptr){
 			while(TRUE){
 			  pthread_mutex_lock(&mutexColaSolicitudes);
 				for(i=0;i<numSolicitudes;i++){
-					listaDeUsuarios[i].atendido=1;
-						char mensajeLog[100];
-						sprintf(mensajeLog, "El atendedor ha atendido la solicitud correctamente");
-						escribirEnLog(idAtendedor, mensajeLog);
-						pthread_mutex_unlock(&mutexColaSolicitudes);
+					if(listaDeUsuarios[i].tipo==0 && listaDeUsuarios[i].atendido==0){
+					  //TODO meter en el log que atendedor atiende que solicitud
+						int numAle = calculaAleatorios(0,100);
+						int tiempoDormir;
+                                	char mensajeLog[100];
+						if(numAle<70){
+							tiempoDormir = calculaAleatorios(1,4);
+                                      	sleep(tiempoDormir);
+                                      	sprintf(mensajeLog,"La solicitud tiene todo en orden, atencion correcta.");
+                                      	listaDeUsuarios[i].tipoAtencion=0;
+							//TODO notificar que se ha realizado una atencion correcta
+							//despues puede solicitar o no entrar en una actividad cultural
+						} else if(numAle<90) {
+							tiempoDormir = calculaAleatorios(2,6);
+                                      	sleep(tiempoDormir);
+                                          sprintf(mensajeLog,"La solicitud tiene errores en los datos personales, atencion correcta.");
+                                      	listaDeUsuarios[i].tipoAtencion=1;
+							//TODO notificar error en datos personales 
+							//despues puede participar o no en una actividad cultural
+						} else {
+							tiempoDormir = calculaAleatorios(6,10);
+                                      	sleep(tiempoDormir);
+                                       	sprintf(mensajeLog,"La solicitud se corresponde con un usuario con antecedentes, atencion correcta.");
+                                      	listaDeUsuarios[i].tipoAtencion=2;
+						  	//TODO no puede hacer mas y despues de ser atendida abandona la cola
+						}
+					}
+					  
+                              escribirEnLog(idAtendedor, mensajeLog);
+
+                              listaDeUsuarios[i].atendido=1;
+                              pthread_mutex_unlock(&mutexColaSolicitudes);
+					}
 				 }
 			}
 			/*Se comprueba si al atendedor le toca atender tomar cafe*/
@@ -407,15 +579,19 @@ void llegaCambioValores(int s){
 		}      
 	}while(valido != -1);
 	/* Se incrementan las variables globales en las unidades incrementadas. */
-	  if(valorACambiar == 1){
-		  numSolicitudes += nuevoValor;
-		  printf("Valor de las solicitudes incrementados en %d hasta %d.\n", nuevoValor, numSolicitudes);
-	  } else{
-		  numAtendedores += nuevoValor;
-		  printf("Valor de las solicitudes incrementados en %d hasta %d.\n" nuevoValor, numAtendedores);
-	  }
+  	int i;
+	if(valorACambiar == 1){
+		numSolicitudes += nuevoValor;
+		printf("Valor de las solicitudes incrementados en %d hasta %d.\n", nuevoValor, numSolicitudes);
+	} else{
+		numAtendedores += nuevoValor;
+		printf("Valor de los atendedores incrementados en %d hasta %d.\n" nuevoValor, numAtendedores);
+        	//TODO Habria que hacer un malloc en listaDeAtendedores incrementando la memoria reservada en nuevoValor
+        	for(i=0; i<nuevoValor; i++){
+      		pthread_create(&listaDeAtendedores[i].hiloAtendedor, NULL, atenderSolicitudes, (void *)&tipoAt[2]);
+     		}
+	}
 	//TODO Realizar efectivamente el cambio añadiendo los nuevos hilos atendedores o de solicitudes que sean
-  
 	/* Se avisa en el log del cambio de valores. */
 	char mensajeLog[250];
 	sprintf(mensajeLog, "Se ha cambiado el valor de solicitudes incrementandolo en %d hasta %d.", nuevoValor, numAtendedores);
@@ -440,7 +616,7 @@ void llegaFinalizacion(int s){
 	printf("PRUEBA: Acabose\n");
   
 	/* Se escribe en el log que se sale del programa y se sale de manera efectiva. */
-	sprintf(mensajeLog, "Saliendo del programa.")
+	sprintf(mensajeLog, "Saliendo del programa.");
 	escribirEnLog("FIN", mensajeLog);
 	exit(0);
 }
