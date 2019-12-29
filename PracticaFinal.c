@@ -17,6 +17,7 @@ int calculaAleatorios(int min, int max);
 void llegaSolicitud(int s);
 void *accionesSolicitud(void *ptr);
 void *accionesAtendedor(void *ptr);
+void *accionesCoordinadorSocial(void *ptr);
 void llegaCambioValores(int s);
 void llegaFinalizacion(int s);
 void escribirEnLog(char* id, char* mensaje);
@@ -55,7 +56,6 @@ int numAtendedores = 1;
 struct Atendedor *listaAtendedores;
 struct Usuario *listaDeUsuarios;//esto es lo mismo listaDeSolicitudes
 struct Usuario listaActividad[4];
-struct Usuario *listaCoordinadores;
 
 /* Para controlar el acceso a los recursos compartidos utilizamos dos semáforos (mutex) */
 pthread_mutex_t mutexCreaHilos;
@@ -257,53 +257,99 @@ void *accionesSolicitud(void *ptr){
     }
     escribirEnLog(idSolicitud,mensajeLog);
 
+    /* Se duerme 4 segundos */
+    sleep(4);
     /* Se declaran variables que usaran en el for*/
   	int errorSistema;
   	int i;
+    int esperar;
+    int tipoSol;
 
-  	for(i=0; i<numSolicitudes; i++){
-        int tipo = listaDeUsuarios[i].tipoAtencion;
-        switch(tipo){
-            /* Solicitud que llega de manera correcta */
-            case 0:
-            while(TRUE){
-              pthread_mutex_lock(&mutexSolicitudes);
-              /* Se comprueba que la solicitud que llega es la que es completamente correcta */
-              errorSistema = calculaAleatorios(0,100);
-                   if(errorSistema >= 50){
-                   	sprintf(mensajeLog,"El usuario no puede pertenecer a una actividad cultural. Es expulsado!");
-                   	pthread_exit(NULL);	
-                  }else{
-                     //sprintf(mensajeLog,)
-                   }
-            } 
-            break;
+    while(TRUE){
+      	for(i=0; i<numSolicitudes; i++){
+            int tipo = listaDeUsuarios[i].tipoAtencion;
+            switch(tipo){
 
-            /* Solicitud que llega con errores de datos personales */
-            case 1:
-            while(TRUE){	
+                /* Solicitud que llega de manera correcta */
+                case 0:
                     pthread_mutex_lock(&mutexSolicitudes);
-			  errorSistema = calculaAleatorios(0,100);
-                   	if(errorSistema >= 50){
-                          	sprintf(mensajeLog,"El usuario no puede pertenecer a una actividad cultural. Es expulsado!");
-                      		pthread_exit(NULL);	
-                    	}else{
-                        	 //TODO sera asociado a una actividad, si la cola esta vacia
-                        }
-         	}
-            break;
+                    if(listaDeUsuarios[i].atendido==0){
+                        tipoSol = listaDeUsuarios[i].tipo;
+                        switch(tipo){
+                            case 0:
+                                esperar = calculaAleatorios(0,100);
+                                /* Si es >90 se sale por mucho tiempo de espera*/
+                                if(esperar>90){
+                                    //TODO liberar espacio de cola, expulsar hilo,loggear
+                                }else{
+                                    esperar = calculaAleatorios(0,100);
+                                    /* Si esperar tiene un valor mayor que 85 se expulsa la solicitud por error en la app, sin avisar, sin log */
+                                    if(esperar>85){
+                                        //TODO liberar espacio de cola, expulsar hilo, no avisar en este caso
+                                    }else{
+                                        sleep(4);
+                                    }
+                                }
+                            break;
 
-            /* Solicitud que llega con errores de todo tipo. */
-            case 2:
-            while(TRUE){
-                  pthread_exit(NULL);  	
-              	sprintf(mensajeLog,"");
+                            case 1:
+                                esperar = calculaAleatorios(0,100);
+                                /* Si es >70 se sale por no ser fiables*/
+                                if(esperar>70){
+                                    //TODO liberar espacio de cola, expulsar hilo,loggear
+                                }else{
+                                    esperar = calculaAleatorios(0,100);
+                                    /* Si esperar tiene un valor mayor que 85 se expulsa la solicitud por error en la app, sin avisar, sin log */
+                                    if(esperar>85){
+                                        //TODO liberar espacio de cola, expulsar hilo, no avisar en este caso
+                                    }else{
+                                        sleep(4);
+                                    }
+                                }
+                            break;
+                            default:
+                                perror("Error en el tipo de solicitud");
+                        }
+                    }else{
+                        errorSistema = calculaAleatorios(0,100);
+                        if(errorSistema >= 50){
+                            sprintf(mensajeLog,"El usuario no puede pertenecer a una actividad cultural. Es expulsado!");
+                            pthread_exit(NULL); 
+                        }else{
+                            //TODO sera asociado a una actividad, si la cola esta vacia
+                        }
+                    }
+                        
+                    
+                
+                break;
+
+                /* Solicitud que llega con errores de datos personales */
+                case 1:	
+                    pthread_mutex_lock(&mutexSolicitudes);
+                    errorSistema = calculaAleatorios(0,100);
+                    if(errorSistema >= 50){
+                        sprintf(mensajeLog,"El usuario no puede pertenecer a una actividad cultural. Es expulsado!");
+                        pthread_exit(NULL);	
+                    }else{
+                        //TODO sera asociado a una actividad, si la cola esta vacia
+                    }
+             
+                break;
+
+                /* Solicitud que llega con errores por antecedentes */
+                case 2:
+                    pthread_exit(NULL);  	
+                  	sprintf(mensajeLog,"");
+                break;
+
+                default:
+                    perror("Error en el tipo de atencion de la solicitud\n");
             }
-            break;
+      		escribirEnLog(idSolicitud, mensajeLog);
+      		pthread_mutex_unlock(&mutexSolicitudes);
         }
-  		escribirEnLog(idSolicitud, mensajeLog);
-  		pthread_mutex_unlock(&mutexSolicitudes);
-      }
+    }
   	
 }
 
@@ -605,6 +651,10 @@ void *accionesAtendedor(void *ptr){
     }
 }
 
+/* Funcion accionesCoordinadorSocial: se encarga de gestionar las actividades sociales*/
+void *accionesCoordinadorSocial(void *ptr){
+
+}
 
 /* Funcion llegaCambioValores: Cuando llega la señal SIGPIPE se accede a esta manejadora para cambiar los atendedores o las solicitudes. */
 void llegaCambioValores(int s){
