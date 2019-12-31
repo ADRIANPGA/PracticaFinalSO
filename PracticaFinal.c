@@ -26,6 +26,7 @@ void escribirEnLog(char* id, char* mensaje);
 FILE *logFile;
 int contadorAtendedor;
 int contadorSolicitudes;
+int contadorActividad;
 
 struct Usuario{
   //Numero con el que entra en la cola
@@ -269,23 +270,26 @@ void *accionesSolicitud(void *ptr){
       	for(i=0; i<numSolicitudes; i++){
             int tipo = listaDeUsuarios[i].tipoAtencion;
             switch(tipo){
-
                 /* Solicitud que llega de manera correcta */
                 case 0:
                     pthread_mutex_lock(&mutexSolicitudes);
                     if(listaDeUsuarios[i].atendido==0){
                         tipoSol = listaDeUsuarios[i].tipo;
-                        switch(tipo){
+                        switch(tipoSol){
                             case 0:
                                 esperar = calculaAleatorios(0,100);
                                 /* Si es >90 se sale por mucho tiempo de espera*/
                                 if(esperar>90){
                                     //TODO liberar espacio de cola, expulsar hilo,loggear
+                                    numSolicitudes--;
+                                    sprintf(mensajeLog,"La solicitud se va por cansarse de esperar");
+                                    escribirEnLog(idSolicitud,mensajeLog);
                                 }else{
                                     esperar = calculaAleatorios(0,100);
                                     /* Si esperar tiene un valor mayor que 85 se expulsa la solicitud por error en la app, sin avisar, sin log */
                                     if(esperar>85){
                                         //TODO liberar espacio de cola, expulsar hilo, no avisar en este caso
+                                        numSolicitudes--;
                                     }else{
                                         sleep(4);
                                     }
@@ -297,13 +301,17 @@ void *accionesSolicitud(void *ptr){
                                 /* Si es >70 se sale por no ser fiables*/
                                 if(esperar>70){
                                     //TODO liberar espacio de cola, expulsar hilo,loggear
+                                    numSolicitudes--;
+                                    sprintf(mensajeLog,"La solicitud de va por cansarse de esperar");
+                                    escribirEnLog(idSolicitud,mensajeLog);
                                 }else{
                                     esperar = calculaAleatorios(0,100);
                                     /* Si esperar tiene un valor mayor que 85 se expulsa la solicitud por error en la app, sin avisar, sin log */
                                     if(esperar>85){
                                         //TODO liberar espacio de cola, expulsar hilo, no avisar en este caso
+                                        numSolicitudes--;
                                     }else{
-                                        sleep(4);
+                                        sleep(4); 
                                     }
                                 }
                             break;
@@ -314,25 +322,69 @@ void *accionesSolicitud(void *ptr){
                         errorSistema = calculaAleatorios(0,100);
                         if(errorSistema >= 50){
                             sprintf(mensajeLog,"El usuario no puede pertenecer a una actividad cultural. Es expulsado!");
+                            escribirEnLog(idSolicitud,mensajeLog);
                             pthread_exit(NULL); 
                         }else{
                             //TODO sera asociado a una actividad, si la cola esta vacia
+                            //sera suficiente con aumentar el contador de la actividad??
                         }
                     }
-                        
-                    
-                
+
                 break;
 
                 /* Solicitud que llega con errores de datos personales */
                 case 1:	
                     pthread_mutex_lock(&mutexSolicitudes);
-                    errorSistema = calculaAleatorios(0,100);
-                    if(errorSistema >= 50){
-                        sprintf(mensajeLog,"El usuario no puede pertenecer a una actividad cultural. Es expulsado!");
-                        pthread_exit(NULL);	
+                    if(listaDeUsuarios[i].atendido==0){
+                        tipoSol = listaDeUsuarios[i].tipo;
+                        switch(tipoSol){
+                            case 0:
+                                esperar = calculaAleatorios(0,100);
+                                /* Si es >90 se sale por mucho tiempo de espera*/
+                                if(esperar>90){
+                                    //TODO liberar espacio de cola, expulsar hilo,loggear
+                                    numSolicitudes--;
+                                }else{
+                                    esperar = calculaAleatorios(0,100);
+                                    /* Si esperar tiene un valor mayor que 85 se expulsa la solicitud por error en la app, sin avisar, sin log */
+                                    if(esperar>85){
+                                        //TODO liberar espacio de cola, expulsar hilo, no avisar en este caso
+                                        numSolicitudes--;
+                                    }else{
+                                        sleep(4);
+                                    }
+                                }
+                            break;
+
+                            case 1:
+                                esperar = calculaAleatorios(0,100);
+                                /* Si es >70 se sale por no ser fiables*/
+                                if(esperar>70){
+                                    //TODO liberar espacio de cola, expulsar hilo,loggear
+                                    numSolicitudes--;
+                                }else{
+                                    esperar = calculaAleatorios(0,100);
+                                    /* Si esperar tiene un valor mayor que 85 se expulsa la solicitud por error en la app, sin avisar, sin log */
+                                    if(esperar>85){
+                                        //TODO liberar espacio de cola, expulsar hilo, no avisar en este caso
+                                        numSolicitudes--;
+                                    }else{
+                                        sleep(4); 
+                                    }
+                                }
+                            break;
+                            default:
+                                perror("Error en el tipo de solicitud");
+                        }
                     }else{
-                        //TODO sera asociado a una actividad, si la cola esta vacia
+                        errorSistema = calculaAleatorios(0,100);
+                        if(errorSistema >= 50){
+                            sprintf(mensajeLog,"El usuario no puede pertenecer a una actividad cultural. Es expulsado!");
+                            escribirEnLog(idSolicitud,mensajeLog);
+                            pthread_exit(NULL); 
+                        }else{
+                            //TODO sera asociado a una actividad, si la cola esta vacia
+                        }
                     }
              
                 break;
@@ -340,7 +392,8 @@ void *accionesSolicitud(void *ptr){
                 /* Solicitud que llega con errores por antecedentes */
                 case 2:
                     pthread_exit(NULL);  	
-                  	sprintf(mensajeLog,"");
+                  	sprintf(mensajeLog,"El usuario no puede pertenecer a una actividad cultural. Es expulsado!");
+                    escribirEnLog(idSolicitud,mensajeLog);
                 break;
 
                 default:
@@ -653,7 +706,14 @@ void *accionesAtendedor(void *ptr){
 
 /* Funcion accionesCoordinadorSocial: se encarga de gestionar las actividades sociales*/
 void *accionesCoordinadorSocial(void *ptr){
-
+    while(TRUE){
+        if(contadorsolicitudes==4){
+            //TODO hacer lo correspondiente a la actividad social
+        }else{
+            /* Dormimos un segundo y volvemos a comprobar si la actividad social esta completa o no */
+            sleep(1);
+        }
+    }
 }
 
 /* Funcion llegaCambioValores: Cuando llega la señal SIGPIPE se accede a esta manejadora para cambiar los atendedores o las solicitudes. */
