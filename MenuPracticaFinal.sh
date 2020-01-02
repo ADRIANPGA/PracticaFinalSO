@@ -1,8 +1,8 @@
 #!/bin/bash
 
-echo -e
+echo 
 echo Practica Final SSOO 2019-2020
-echo -e
+echo 
 echo Adrián Pérez García
 echo Diego Fernandez Velasco
 echo Pablo de la Hera Martinez
@@ -29,7 +29,7 @@ then
 			;;
 			2)
 				echo Compilando...
-				gcc PracticaFinal.c -o PracticaFinal
+				gcc PracticaFinal.c -o PracticaFinal -lpthread
 				echo Codigo compilado con exito
 			;;
 			3)
