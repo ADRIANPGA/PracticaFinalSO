@@ -15,14 +15,14 @@ then
 	salida=4
 	while test $entrada -ne $salida
 	do
-		echo -e 
+		echo 
 		echo Introduce una opción para realizar la acción deseada:
 		echo 1 - Mostrar el codigo del programa
 		echo 2 - Compilar el programa
 		echo 3 - Ejecutarlo
 		echo 4 - Salir
 		read entrada
-		echo -e 
+		echo  
 		case $entrada in
 			1)	
 				cat PracticaFinal.c
@@ -37,7 +37,7 @@ then
 				then
 					if test -x PracticaFinal
 					then
-						./PracticaFinal
+						./PracticaFinal 15 2
 					else
 						echo Error: No hay permisos de ejecucion
 					fi
