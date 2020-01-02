@@ -25,7 +25,7 @@ then
 		echo -e 
 		case $entrada in
 			1)	
-				cat PracticaIntermedia.c
+				cat PracticaFinal.c
 			;;
 			2)
 				echo Compilando...
