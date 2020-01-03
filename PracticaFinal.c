@@ -196,7 +196,6 @@ int main(int argc, char const *argv[]){
 	/*J representa el contador de ID's*/
 	int j=0;
 	for (i = 0; i < numSolicitudes; i++) {
-		(listaDeUsuarios+i)->id=j;
 		(listaDeUsuarios+i)->atendido=1;
 		j++;
 	}
@@ -206,11 +205,12 @@ int main(int argc, char const *argv[]){
 	pthread_t *atpros;
 	pthread_t atqr,atinvitacion; 
 	pthread_mutex_lock(&mutexCreaHilos);
-	pthread_create(&listaAtendedores[0].hiloAtendedor, NULL, accionesAtendedor, tipoAt[0]);
-	pthread_create(&listaAtendedores[1].hiloAtendedor, NULL, accionesAtendedor, tipoAt[1]);
+  	/* Casteamos el int a el void pointer */
+	pthread_create(&listaAtendedores[0].hiloAtendedor, NULL, accionesAtendedor, (void *)(intptr_t)tipoAt[0]);
+	pthread_create(&listaAtendedores[1].hiloAtendedor, NULL, accionesAtendedor, (void *)(intptr_t)tipoAt[1]);
 	for(i=0;i<numAtendedores;i++){
 		printf("creado %d\n", +i);
-		pthread_create(&listaAtendedores[i].hiloAtendedor, NULL, accionesAtendedor, tipoAt[2]);
+		pthread_create(&listaAtendedores[i].hiloAtendedor, NULL, accionesAtendedor, (void *)(intptr_t)tipoAt[2]);
 	}
 	pthread_mutex_unlock(&mutexCreaHilos);
 
@@ -238,9 +238,8 @@ int main(int argc, char const *argv[]){
 /*-------------------------- DEFINICION DE FUNCIONES -----------------------*/
 /* Funcion llega Solicitud: Comprobamos si las solicitudes pueden entrar en la cola*/
 void llegaSolicitud(int signal){
-	printf("Vsmog a esperar un Mutex\n");
+	printf("Vamog a esperar un Mutex\n");
 	pthread_mutex_lock(&mutexColaSolicitudes); 
-	printf("No hay nada de solicitudes por QR.\n");
 	if(contadorSolicitudes==numSolicitudes){
 		printf("Solicitud rechazada\nLa cola esta llena\n");
 	} else{
@@ -250,18 +249,18 @@ void llegaSolicitud(int signal){
 		listaDeUsuarios[contadorSolicitudes].atendido = 0;
 		switch(signal){
 			case SIGUSR1:
-			printf("La solicitud es de QR.\n");
-			pthread_create(&listaDeUsuarios[contadorSolicitudes].hiloUsuario, NULL, accionesSolicitud, contadorSolicitudes);
-			printf("C creo el hilo de QR.\n");
+                	printf("Atendidoooooo: %d un puto \n",listaDeUsuarios[contadorSolicitudes].atendido);
+			printf("ES DE INVITACION .\n");
+			pthread_create(&listaDeUsuarios[contadorSolicitudes].hiloUsuario, NULL, accionesSolicitud, (void *)(intptr_t)contadorSolicitudes);
+			printf("C creo el hilo de INVITACION.\n");
 			listaDeUsuarios[contadorSolicitudes].tipo=0;
-			listaDeUsuarios[contadorSolicitudes].atendido=0;
 			break;
 			case SIGUSR2:
-			printf("La solicitud es por invitacion.\n");
-			pthread_create(&listaDeUsuarios[contadorSolicitudes].hiloUsuario, NULL, accionesSolicitud, contadorSolicitudes);
-			printf("C creo el hilo de invitacion.\n");
+                	printf("Atendidoooooo: %d\n",listaDeUsuarios[contadorSolicitudes].atendido);
+			printf("ES DE QR.\n");
+			pthread_create(&listaDeUsuarios[contadorSolicitudes].hiloUsuario, NULL, accionesSolicitud, (void *)(intptr_t)contadorSolicitudes);
+			printf("C creo el hilo de QR.\n");
 			listaDeUsuarios[contadorSolicitudes].tipo=1;
-			listaDeUsuarios[contadorSolicitudes].atendido=0;
 			break;
 		}
 		contadorSolicitudes++;
@@ -271,7 +270,7 @@ void llegaSolicitud(int signal){
 
 /* Funcion acciones Solicitud: comprobamos si las solicitudes pueden unirse o no a una actividad social*/
 void *accionesSolicitud(void *ptr){ 
-	printf("Llega a donde tiene que llegar\n");
+	printf("Llega a acsionesSolicitud\n");
   	/* Se guarda para escribir en el Log el id del atendedor */
 	int identificadorSolicitud = (intptr_t)ptr;
 	char idSolicitud[100];
@@ -287,11 +286,9 @@ void *accionesSolicitud(void *ptr){
 	if(listaDeUsuarios[identificadorSolicitud].tipo==0){
 		printf("Es de tipo invitacion \n");
 		sprintf(mensajeLog, "Es de tipo invitacion");
-		printf( "Es de tipo invitacion \n");
 	}else{
 		printf("Es de tipo QR \n");
 		sprintf(mensajeLog, "Es de tipo QR");
-		printf( "Es de tipo QR \n");
 	}
 	escribirEnLog(idSolicitud,mensajeLog);
 
@@ -347,6 +344,7 @@ void *accionesSolicitud(void *ptr){
                                     /* Si esperar tiene un valor mayor que 85 se expulsa la solicitud por error en la app, sin avisar, sin log */
 							if(esperar>85){
 								numSolicitudes--;
+                                          	printf("El hilo c cansó y c va lmao. \n");
 								pthread_exit(NULL);	
 							}else{
 								sleep(4); 
@@ -359,7 +357,7 @@ void *accionesSolicitud(void *ptr){
 				}else{
 					errorSistema = calculaAleatorios(0,100);
 					if(errorSistema >= 50){
-						printf("El usuario decide no puede pertenecer a una actividad cultural \n");
+						printf("El usuario decide no pertenecer a una actividad cultural \n");
 						sprintf(mensajeLog,"El usuario decide no puede pertenecer a una actividad cultural");
 						escribirEnLog(idSolicitud,mensajeLog);
 						pthread_exit(NULL);
@@ -527,15 +525,26 @@ void *accionesAtendedor(void *ptr){
 
 	/* Los atendedores se quedaran en un bucle infinito atendiendo solicitudes*/
 	printf("El tipo del atendedor es %d \n", identificadorAtendedor);
+  	printf("Tipo: %d\n",listaDeUsuarios[i].tipo);
+      printf("Atendido: %d\n",listaDeUsuarios[i].atendido);
+      printf("Atendiendo: %d\n",listaAtendedores[identificadorAtendedor].atendiendo);
 	/* Id del antendedor*/
-	while(TRUE){      	
+	while(TRUE){ 
+        	printf("PASO POR AQUI !!!!!. \n");
 		switch(identificadorAtendedor){
 			case 0:
+                	printf("El de invitacion se pone al currele.\n");
+                	printf("Tipo: %d\n",listaDeUsuarios[i].tipo);
+                	printf("Atendido: %d\n",listaDeUsuarios[i].atendido);
+                	printf("Atendiendo xddd: %d\n",listaAtendedores[identificadorAtendedor].atendiendo);
     			/* Atendedor de tipo Invitacion */
 			pthread_mutex_lock(&mutexColaAtendedores);
 			for(i=0;i<numSolicitudes;i++){
+                    printf("SOY UN INV\n");
     				/* Se comprueba que el atendedor puede atender dicha solicitud. */
+                    	
 				if(listaDeUsuarios[i].tipo==0 && listaDeUsuarios[i].atendido==0 && listaAtendedores[identificadorAtendedor].atendiendo==0){
+                          	printf("Invitacion: Encontre trabajo");
 					int numAle = calculaAleatorios(0,100);
 					int tiempoDormir;
                           	/* Calculamos el tipo de atencion*/
@@ -579,10 +588,12 @@ void *accionesAtendedor(void *ptr){
 					pthread_mutex_unlock(&mutexColaAtendedores);
 				}
 			}
-
+			printf("Salgo del for1\n");
     			/*En este caso no existen solicitudes por invitacion, atendera la que mas tiempo lleve*/
 			for(i=0;i<numSolicitudes;i++){
+                    	printf("SOY UN INV\n");;
 				if(listaDeUsuarios[i].atendido==0 && listaAtendedores[identificadorAtendedor].atendiendo==0){
+                          	printf("Invitacion: ENcontre una general");
 					int numAle = calculaAleatorios(0,100);
 					int tiempoDormir;
                           	/* Calculamos el tipo de atencion*/
@@ -626,6 +637,9 @@ void *accionesAtendedor(void *ptr){
 					pthread_mutex_unlock(&mutexColaAtendedores);
 				}
 			}
+
+                	pthread_mutex_unlock(&mutexColaAtendedores);                	
+                	printf("Salgo del for2\n");
     			/*Se comprueba si al atendedor le toca atender tomar cafe*/
 			if(listaAtendedores[0].solAtendidas != 0){
 				if(listaAtendedores[0].solAtendidas%5 == 0){
@@ -645,11 +659,17 @@ void *accionesAtendedor(void *ptr){
 			}
 			break;
 			case 1:
+                  printf("Tipo: %d\n",listaDeUsuarios[i].tipo);
+                  printf("Atendido: %d\n",listaDeUsuarios[i].atendido);
+                  printf("Atendiendo xddd: %d\n",listaAtendedores[identificadorAtendedor].atendiendo);
+                	printf("El de QR se pone al currele.\n");
     			/* Atendedor de tipo QR. */
 			pthread_mutex_lock(&mutexColaAtendedores);
 			for(i=0;i<numSolicitudes;i++){
+                    printf("SOY UN QR\n");
     				/* Se comprueba que el atendedor puede atender dicha solicitud. */
 				if(listaDeUsuarios[i].tipo==1 && listaDeUsuarios[i].atendido==0 && listaAtendedores[identificadorAtendedor].atendiendo==0){
+                          	printf("QR: Encontre de lo mio");
 					int numAle = calculaAleatorios(0,100);
 					int tiempoDormir;
                           	/* Calculamos el tipo de atencion*/
@@ -693,9 +713,13 @@ void *accionesAtendedor(void *ptr){
 					pthread_mutex_unlock(&mutexColaAtendedores);
 				}
 			}
+
+                                	printf("Salgo del for1\n");
     			/* En este caso no existen solicitudes por invitacion, se atendera la que mas tiempo lleve. */
 			for(i=0;i<numSolicitudes;i++){
+                    	printf("SOY UN QR\n");
 				if(listaDeUsuarios[i].atendido==0 && listaAtendedores[identificadorAtendedor].atendiendo==0){
+                          	printf("QR: Encontre general");
 					int numAle = calculaAleatorios(0,100);
 					int tiempoDormir;
 					if(numAle<70){
@@ -739,6 +763,8 @@ void *accionesAtendedor(void *ptr){
 					pthread_mutex_unlock(&mutexColaAtendedores);
 				}
 			}
+
+                  pthread_mutex_unlock(&mutexColaAtendedores);                	printf("Salgo del for2\n");
         		/*Se comprueba si al atendedor le toca atender tomar cafe*/
 			if(listaAtendedores[1].solAtendidas != 0){
 				if(listaAtendedores[1].solAtendidas%5 == 0){
@@ -760,9 +786,15 @@ void *accionesAtendedor(void *ptr){
 
     		/* Atendedor de tipo PRO */
 			default:
+                  printf("Tipo: %d\n",listaDeUsuarios[i].tipo);
+                  printf("Atendido: %d\n",listaDeUsuarios[i].atendido);
+                  printf("Atendiendo xddd: %d\n",listaAtendedores[identificadorAtendedor].atendiendo);
+                	printf("El de pro se pone al currele.\n");
 			pthread_mutex_lock(&mutexColaAtendedores);
 			for(i=0;i<numSolicitudes;i++){
+                        printf("SOY UN PRO\n");
 				if(listaAtendedores[identificadorAtendedor].atendiendo==0 && listaDeUsuarios[i].atendido==0){
+                        	printf("Pro: Hay trabajo");
 					int numAle = calculaAleatorios(0,100);
 					int tiempoDormir;
 					if(numAle<70){
@@ -805,6 +837,8 @@ void *accionesAtendedor(void *ptr){
 					pthread_mutex_unlock(&mutexColaAtendedores);
 				}
 			}
+
+                  pthread_mutex_unlock(&mutexColaAtendedores);                	printf("Salgo del for unico	\n");
     			/*Se comprueba si al atendedor le toca atender tomar cafe*/
 			if(listaAtendedores[identificadorAtendedor].solAtendidas != 0){
 				if(listaAtendedores[identificadorAtendedor].solAtendidas%5 == 0){
@@ -939,6 +973,7 @@ void llegaFinalizacion(int s){
 
 /* Funcion calculaAleatorios: Utilizada para generar numeros aleatorios en el proceso de seleccion de invitaciones. */
 int calculaAleatorios(int min, int max){
+  	/* Se utiliza la fecha actual como semilla para generar el numero. */
 	srand(time(NULL));
 	/* Se utiliza la libreria stdlib para generar un numero aleatorio entre 0 y 1, posteriormente se opera para que sea un entero entre el minimo y el maximo. */
 	return rand() % (max-min+1) + min;
@@ -959,7 +994,7 @@ void escribirEnLog(char * id , char * mensaje){
 	logFile = fopen("registroTiempos.log" , "a");
 	fprintf(logFile, "[ %s] %s: %s\n", stnow , id , mensaje);
 	fclose(logFile);
-
+  
 	/* Se libera el mutex para que otros hilos puedan escribir en el log. */
 	pthread_mutex_unlock(&mutexLog);
 }
