@@ -124,7 +124,7 @@ int main(int argc, char const *argv[]){
 	srand(getpid());
 	listaDeUsuarios = (struct Usuario*)malloc(sizeof(struct Usuario)*numSolicitudes);
 	listaAtendedores = (struct Atendedor*)malloc(sizeof(struct Atendedor)*(numAtendedores+2));
-	pthread_mutex_init(&mutexColaSolicitudes, NULL);
+	printf("Definidas las colas\n");
 
 	/* Se definen las estructuras para las entradas de las solicitudes y se enmascaran las señales. */
 	struct sigaction sInv = {0};
@@ -151,6 +151,7 @@ int main(int argc, char const *argv[]){
 		perror("Cambio de valores: sigaction");
 		exit(-1);
 	}
+	printf("Asignadas handlers\n");
 
   /* Inicializamos los mutex */
   if (pthread_mutex_init(&mutexCreaHilos, NULL)!=0) exit(-1); 
@@ -162,6 +163,8 @@ int main(int argc, char const *argv[]){
   /* Inicializamos las variables condición */
   if (pthread_cond_init(&condicionIniciarActividad, NULL)!=0) exit(-1);
   if (pthread_cond_init(&condicionAcabarActividad, NULL)!=0) exit(-1);
+
+  printf("Asignados mutex y variales condicion\n");
   
 	/*Incializamos los atendedores*/
 	int i;
@@ -184,6 +187,8 @@ int main(int argc, char const *argv[]){
 		}
 	}
 
+	printf("Iniciados los atendedores\n");
+
 	/*J representa el contador de ID's*/
 	int j=0;
 	for (i = 0; i < numSolicitudes; i++) {
@@ -193,13 +198,16 @@ int main(int argc, char const *argv[]){
                (listaDeUsuarios+i)->tipoAtencion=0;
 		   j++;
 	}
-		
+
+	printf("Iniciadas las solicitudes\n");
+	
 	pthread_t *atpros;
 	pthread_t atqr,atinvitacion; 
 	pthread_mutex_lock(&mutexCreaHilos);
 	pthread_create(&listaAtendedores[0].hiloAtendedor, NULL, accionesAtendedor, &tipoAt[0]);
 	pthread_create(&listaAtendedores[1].hiloAtendedor, NULL, accionesAtendedor, &tipoAt[1]);
 	for(i=0;i<numAtendedores;i++){
+		printf("creado %d\n", +i);
 		pthread_create(&listaAtendedores[i].hiloAtendedor, NULL, accionesAtendedor, &tipoAt[2]);
 	}
 	pthread_mutex_unlock(&mutexCreaHilos);
@@ -486,9 +494,10 @@ void *accionesAtendedor(void *ptr){
   	char acabaCafe[100];
   
 	/* Los atendedores se quedaran en un bucle infinito atendiendo solicitudes*/
+	printf("Se va a entrar en el while tru\n");
 	/* Id del antendedor*/
     while(TRUE){
-      
+      	printf("El tipo del atendedor es %d\n", identificadorAtendedor);
     	switch(identificadorAtendedor){
     		case 0:
     			/* Atendedor de tipo Invitacion */
