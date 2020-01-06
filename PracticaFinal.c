@@ -55,6 +55,8 @@ struct Atendedor *listaAtendedores;
 struct Usuario *listaDeUsuarios; //esto es lo mismo listaDeSolicitudes
 struct Usuario listaActividad[4];
 
+pthread_t hiloCoordinador;
+
 /* Para controlar el acceso a los recursos compartidos utilizamos dos semáforos (mutex) */
 pthread_mutex_t mutexCreaHilos;
 pthread_mutex_t mutexColaSolicitudes;
@@ -193,9 +195,11 @@ int main(int argc, char const *argv[]){
         (listaDeUsuarios+i)->atendido=1;
         j++;
     }
+    int num=1;
     
-    pthread_t *atpros;
-    pthread_t atqr,atinvitacion; 
+    //pthread_t *atpros;
+    //pthread_t atqr,atinvitacion;
+    
     pthread_mutex_lock(&mutexCreaHilos);
     /* Casteamos el int a el void pointer */
     pthread_create(&listaAtendedores[0].hiloAtendedor, NULL, accionesAtendedor, (void *)(intptr_t)tipoAt[0]);
@@ -203,6 +207,7 @@ int main(int argc, char const *argv[]){
     for(i=0;i<numAtendedores;i++){
         pthread_create(&listaAtendedores[i].hiloAtendedor, NULL, accionesAtendedor, (void *)(intptr_t)tipoAt[2]);
     }
+    pthread_create(&hiloCoordinador,NULL, accionesCoordinadorSocial, (void *)(intptr_t)num);
     pthread_mutex_unlock(&mutexCreaHilos);
 
     /* Se imprime el encabezado y se espera un intro para empezar a recibir señales */
@@ -408,6 +413,10 @@ void *accionesSolicitud(void *ptr){
           	pthread_mutex_lock(&mutexAcabarActividad);
           	printf("Decrementando el contador\n");
             contadorActividad--;
+          	if(contadorActividad==0){
+              printf("SOMOS 0\n");
+              pthread_cond_signal(&condicionAcabarActividad);
+            }
           	pthread_mutex_unlock(&mutexAcabarActividad);
 		
             printf("Sale de la actividad\n");
@@ -420,8 +429,7 @@ void *accionesSolicitud(void *ptr){
         }else{
           	sleep(3);
             pthread_mutex_unlock(&mutexListaActividad);
-            pthread_mutex_unlock(&mutexActividad);
-            
+            pthread_mutex_unlock(&mutexActividad);          
         }
     }
     
@@ -847,6 +855,7 @@ void *accionesCoordinadorSocial(void *ptr){
     sprintf(idCoordinador,"Coordinador_1: ");
 
     while(TRUE){
+      	printf("INTENTO COGER EL MUTEX\n");
             /* Espera a que le avisen de que puede iniciar */
             pthread_mutex_lock(&mutexListaActividad);
       	printf("EYEYEY\n");
@@ -861,15 +870,16 @@ void *accionesCoordinadorSocial(void *ptr){
                 printf("La actividad comienza.\n");
                 pthread_cond_signal(&condicionIniciarActividad);
                 //TODO duda de si usar el join o un wait
-                pthread_join(listaActividad[4].hiloUsuario, NULL);
+                pthread_cond_wait(&condicionAcabarActividad,&mutexListaActividad);
                 sprintf(mensajeLog, "La actividad ha terminado.");
                 escribirEnLog(idCoordinador, mensajeLog);
                 printf("La actividad ha terminado\n");
                 /* Reabre la lista para que mas solicitudes puedan intentar entrar */
                 pthread_mutex_unlock(&mutexListaActividad);            
             } else{
+              	printf("Desbloqueo el mutex\n");
                   pthread_mutex_unlock(&mutexListaActividad);
-                  sleep(3);
+                  sleep(1);
             }   
     }
 }
