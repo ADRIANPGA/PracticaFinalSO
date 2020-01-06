@@ -30,6 +30,7 @@ int numAtendedores = 1;
 
 int contadorAtendedor;
 int contadorSolicitudes;
+int numSolicitudesTotal;
 int contadorActividad;
 int tipoAt[3] = {0,1,2};
 
@@ -66,10 +67,12 @@ pthread_mutex_t mutexActividad;
 pthread_mutex_t mutexColaAtendedores;
 pthread_mutex_t mutexListaActividad;
 pthread_mutex_t mutexAcabarActividad;
+//pthread_mutex_t mutex8;
 
 /*Variables condición*/
 pthread_cond_t condicionIniciarActividad;
 pthread_cond_t condicionAcabarActividad;
+//pthread_cond_t condicionIntermediaActividad;
 
 
 /* --------------------------- MAIN --------------------------- */
@@ -201,7 +204,7 @@ int main(int argc, char const *argv[]){
     //pthread_t atqr,atinvitacion;
     
     pthread_mutex_lock(&mutexCreaHilos);
-    /* Casteamos el int a el void pointer */
+    /* Casteamos a int el void pointer */
     pthread_create(&listaAtendedores[0].hiloAtendedor, NULL, accionesAtendedor, (void *)(intptr_t)tipoAt[0]);
     pthread_create(&listaAtendedores[1].hiloAtendedor, NULL, accionesAtendedor, (void *)(intptr_t)tipoAt[1]);
     for(i=0;i<numAtendedores;i++){
@@ -317,7 +320,7 @@ void *accionesSolicitud(void *ptr){
         switch(tipo){
             /* Solicitud que llega de manera correcta */
             case 0:
-                if(calculaAleatorios(0,100) > 50){
+                if(calculaAleatorios(0,100) == 202){ //TODO CAMBIAR A 50%
                     printf("esperamos a que el mutex se desbloquee\n");
                     /* Escribimos en el log que el usuario no quiere participar */
                     printf("La solicitud %d decide no pertenecer a una actividad cultural.\n", identificadorSolicitud+1);
@@ -331,7 +334,7 @@ void *accionesSolicitud(void *ptr){
                 break;
             /* Solicitud que tiene errores en datos personales */
             case 1:
-                if(calculaAleatorios(0,100) > 50){
+                if(calculaAleatorios(0,100) == 202){ //TODO CAMBIAR A 50%
                     /* Escribimos en el log que el usuario no quiere participar */
                     printf("La solicitud %d decide no pertenecer a una actividad cultural.\n", identificadorSolicitud+1);
                     sprintf(mensajeLog,"El usuario decide no pertenecer a una actividad cultural.");
@@ -374,7 +377,7 @@ void *accionesSolicitud(void *ptr){
                     pthread_mutex_unlock(&mutexSolicitudes);
                     pthread_exit(NULL);
                 }else{
-                            pthread_mutex_unlock(&mutexSolicitudes);
+                    pthread_mutex_unlock(&mutexSolicitudes);
                     sleep(4);
                 }
                 break;
@@ -388,48 +391,55 @@ void *accionesSolicitud(void *ptr){
     pthread_mutex_unlock(&mutexSolicitudes);
     escribirEnLog(idSolicitud, mensajeLog);
     int puede = 1;
-    
-    while(puede!=0){
+    int j;
+    while(TRUE){
         pthread_mutex_lock(&mutexListaActividad);
         printf("MUTEX LISTA ACTI COGIDO\n");
-        pthread_mutex_lock(&mutexActividad);
-        printf("MUTEX ACTIVIDAD COGIDO\n");
         if(contadorActividad<4){
-          	printf("SOMOS 4\n");
             listaActividad[contadorActividad]=listaDeUsuarios[identificadorSolicitud];    
-          //TODO Sacar de la lista de Usuarios a los hilos que entran en la actividad
-            contadorActividad++;
-            puede=0;
+            //TODO Sacar de la lista de Usuarios a los hilos que entran en la actividad
             //pthread_mutex_unlock(&mutexActividad);
             pthread_mutex_unlock(&mutexListaActividad);
+            pthread_mutex_lock(&mutexActividad);
 
-          	printf("Esta preparado para iniciar actividad\n");
+            printf(" ----- Hilo %d Esta preparado para iniciar actividad-----\n", contadorActividad);
             sprintf(mensajeLog, "Esta preparado para iniciar actividad");
             escribirEnLog(idSolicitud, mensajeLog);
-            pthread_cond_wait(&condicionIniciarActividad, &mutexActividad);
-            sleep(3);
-          	//protejer variable con un mutex
-          	printf("Esperando...\n");
-          	pthread_mutex_lock(&mutexAcabarActividad);
-          	printf("Decrementando el contador\n");
-            contadorActividad--;
-          	if(contadorActividad==0){
-              printf("SOMOS 0\n");
-              pthread_cond_signal(&condicionAcabarActividad);
+            contadorActividad++;
+            printf("CONTADOR ACTIVIDAD: %d",contadorActividad);
+            /* Bucle while permite retener a los hilos hasta que llegue el ultimo */
+            while(puede!=0){
+              if(contadorActividad==4){
+                    pthread_cond_wait(&condicionIniciarActividad,&mutexActividad);
+                    sleep(3);
+                    printf("Esperando...\n");
+                    pthread_mutex_lock(&mutexAcabarActividad);
+                    printf("Decrementando el contador\n");
+
+                    contadorActividad=0;
+                    printf("CONTADOR ACTIVIDAD: %d",contadorActividad);
+                    pthread_mutex_unlock(&mutexAcabarActividad);
+                    printf("SOMOS 0\n");
+                    for(j=0;j<3;j++){
+                      pthread_cancel(listaActividad[i].hiloUsuario);
+                    }
+                    pthread_cond_signal(&condicionAcabarActividad);
+              }else{
+                pthread_mutex_unlock(&mutexActividad);
+                sleep(20);
+                
+              }
             }
-          	pthread_mutex_unlock(&mutexAcabarActividad);
-		
             printf("Sale de la actividad\n");
             sprintf(mensajeLog, "Sale de la actividad");
             escribirEnLog(idSolicitud, mensajeLog);
                 
-          	compactarArray(identificadorSolicitud);
-            pthread_mutex_unlock(&mutexActividad);
-          	pthread_exit(NULL);
+            //compactarArray(identificadorSolicitud);
+            pthread_exit(NULL);
         }else{
-          	sleep(3);
             pthread_mutex_unlock(&mutexListaActividad);
-            pthread_mutex_unlock(&mutexActividad);          
+            sleep(10);
+            //pthread_mutex_unlock(&mutexActividad);          
         }
     }
     
@@ -457,236 +467,205 @@ void *accionesAtendedor(void *ptr){
     /* Se guarda para escribir en el Log el id del atendedor */
     int identificadorAtendedor = (intptr_t)ptr;
     char idAtendedor[100];
-    //printf("Atendedor_%d: \n", identificadorAtendedor+1);
     sprintf(idAtendedor, "Atendedor_%d: ", identificadorAtendedor+1);
     char mensajeLog[100];
     char mensaje[100];
     char tomarCafe[100];
     char acabaCafe[100];
 
-    /* Los atendedores se quedaran en un bucle infinito atendiendo solicitudes
-    printf("El tipo del atendedor es %d \n", identificadorAtendedor);
-    printf("Tipo: %d\n",listaDeUsuarios[i].tipo);
-    printf("Atendido: %d\n",listaDeUsuarios[i].atendido);
-    printf("Atendiendo: %d\n",listaAtendedores[identificadorAtendedor].atendiendo);*/
-
-    /* Id del antendedor*/
+    /* Los atendedores se quedaran en un bucle infinito atendiendo solicitudes. */
     while(TRUE){    
         srand(time(NULL));
-            //printf("PASO POR AQUI !!!!!. \n");
         switch(identificadorAtendedor){
+            /* Caso de que sea un atendedor de invitaciones. */
             case 0:
                 pthread_mutex_lock(&mutexSolicitudes);
-                //printf("El de invitacion tiene el mutex XDDD \n");
+               /* Se busca solicitudes de tipo 0 (Invitacion). */
                 for(i=0;i<numSolicitudes;i++){
-                    /* Se comprueba que el atendedor puede atender dicha solicitud. */
+                  if(listaDeUsuarios[i].tipo==0 && listaDeUsuarios[i].atendido==0 && listaAtendedores[identificadorAtendedor].atendiendo==0){
+                      /* Cambiamos el flag de atendiendo del atendedor. */
+                      listaAtendedores[identificadorAtendedor].atendiendo=1;
+                      listaAtendedores[identificadorAtendedor].solAtendidas++;
 
-                if(listaDeUsuarios[i].tipo==0 && listaDeUsuarios[i].atendido==0 && listaAtendedores[identificadorAtendedor].atendiendo==0){
-                    int numAle = calculaAleatorios(0,100);
-                    int tiempoDormir;
-                            /* Calculamos el tipo de atencion*/
-                    if(numAle<70){
-                        tiempoDormir = calculaAleatorios(1,4);
-                        sleep(tiempoDormir);
-                        printf("La solicitud_%d tiene todo en orden, atencion correcta. \n",i+1);
-                        sprintf(mensajeLog,"La solicitud_%d tiene todo en orden, atencion correcta.",i+1);
-                        listaDeUsuarios[i].tipoAtencion=0;
-                        //pthread_mutex_unlock(&mutexSolicitudes);
-                              /* Despues puede solicitar o no entrar en una actividad cultural */
-                    } else if(numAle<90) {
-                        tiempoDormir = calculaAleatorios(2,6);
-                        sleep(tiempoDormir);
-                        printf("La solicitud_%d tiene errores en los datos personales, atencion correcta. \n",i+1);
-                        sprintf(mensajeLog,"La solicitud_%d tiene errores en los datos personales, atencion correcta.",i+1);
-                        listaDeUsuarios[i].tipoAtencion=1;
-                                    //pthread_mutex_unlock(&mutexSolicitudes);
-                                /* Despues puede participar o no en una actividad cultural */
-                    } else {
-                        tiempoDormir = calculaAleatorios(6,10);
-                        sleep(tiempoDormir);
-                        printf("La solicitud_%d se corresponde con un usuario con antecedentes penales, atencion correcta. \n",i+1);
-                        sprintf(mensajeLog,"La solicitud_%d se corresponde con un usuario con antecedentes penales, atencion correcta.",i+1);
-                        listaDeUsuarios[i].tipoAtencion=2;
-                                    //pthread_mutex_unlock(&mutexSolicitudes);
-                    }
-                    
+                          /* Calculamos el tipo de atencion. */
+                          int numAle = calculaAleatorios(0,100);
 
-                    /* Log del momento de fin de atencion */
-                    printf("La solicitud_%d ha sido atendida\n", i+1);
-                    sprintf(mensaje, "La solicitud_%d ha sido atendida", i+1);
-                    escribirEnLog(idAtendedor, mensaje);
-                    /* Log de como ha sido la atencion*/                              
-                    escribirEnLog(idAtendedor, mensajeLog);
+                      /* Primer caso, 70% de que la solicitud tenga todo en orden. */
+                      if(numAle < 70){
+                          sleep(calculaAleatorios(1,4));
+                          sprintf(mensajeLog,"La solicitud_%d tiene todo en orden.", i+1);
+                          printf("La solicitud_%d tiene todo en orden.\n", i+1);
+                          listaDeUsuarios[i].tipoAtencion=0;
+                      /* Segundo caso, 20% de que la solicitud tenga algún error en los datos personales. */
+                      } else if(numAle < 90) {
+                          sleep(calculaAleatorios(2,6));
+                          sprintf(mensajeLog,"La solicitud_%d tiene errores en los datos personales.",i+1);
+                          printf("La solicitud_%d tiene errores en los datos personales.\n",i+1);
+                          listaDeUsuarios[i].tipoAtencion=1;
+                      /* Tercer y ultimo caso, 10% de que se corresponda con un usuario con antecedentes. */
+                      } else {
+                          sleep(calculaAleatorios(6,10));
+                          sprintf(mensajeLog,"La solicitud_%d se corresponde con un usuario con antecedentes.",i+1);
+                          printf("La solicitud_%d se corresponde con un usuario con antecedentes.\n",i+1);
+                          listaDeUsuarios[i].tipoAtencion=2;
+                      }
 
-                    /* Cambiamos el flag de atendido de la solicitud */
-                    listaDeUsuarios[i].atendido=1;
 
-                    /* Cambiamos el flag de atendido del atendedor*/
-                    listaAtendedores[identificadorAtendedor].atendiendo=1;
-                    listaAtendedores[identificadorAtendedor].solAtendidas++;
+                      /* Log del momento de fin de atencion. */
+                      printf("La solicitud_%d ha sido atendida correctamente.\n", i+1);
+                      sprintf(mensaje, "La solicitud_%d ha sido atendida correctamente", i+1);
+                      escribirEnLog(idAtendedor, mensaje);
+                      /* Log de como ha sido la atencion. */                              
+                      escribirEnLog(idAtendedor, mensajeLog);
 
-                    pthread_mutex_unlock(&mutexSolicitudes);
+                      /* Se cambia el flag de atendido de la solicitud y se desbloquea el mutex. */
+                      listaDeUsuarios[i].atendido=1;
+                      pthread_mutex_unlock(&mutexSolicitudes);
 
-                    if(listaAtendedores[0].solAtendidas != 0){
-                        if(listaAtendedores[0].solAtendidas%5 == 0){
-                                        /* Se registra la entrada al cafe */
-                            printf("El atendedor de invitaciones se va a tomar cafe. \n");
-                            sprintf(tomarCafe, "El atendedor de invitaciones se va a tomar cafe.");
-                            escribirEnLog(idAtendedor, tomarCafe);
+                        /* Comprobacion si le toca tomar cafe. */
+                      if(listaAtendedores[0].solAtendidas != 0){
+                          if(listaAtendedores[0].solAtendidas%5 == 0){
+                                          /* Se registra la entrada al cafe. */
+                              printf("El atendedor de invitaciones se va a tomar cafe. \n");
+                              sprintf(tomarCafe, "El atendedor de invitaciones se va a tomar cafe.");
+                              escribirEnLog(idAtendedor, tomarCafe);
 
-                            /* Duerme 10 segundos */
-                            sleep(10);
+                              /* Duerme 10 segundos */
+                              sleep(10);
 
-                            /* Se registra la salida al café */
-                            printf("El atendedor de invitaciones regresa de tomar cafe. \n");
-                            sprintf(acabaCafe, "El atendedor de invitaciones regresa de tomar cafe.");
-                            escribirEnLog(idAtendedor, acabaCafe);
-                        }
-                    }
+                              /* Se registra la salida al cafe. */
+                              printf("El atendedor de invitaciones regresa de tomar cafe. \n");
+                              sprintf(acabaCafe, "El atendedor de invitaciones regresa de tomar cafe.");
+                              escribirEnLog(idAtendedor, acabaCafe);
+                          }
+                      }
                 }
             }
-            //printf("Salgo del for1\n");
-                /*En este caso no existen solicitudes por invitacion, atendera la que mas tiempo lleve*/
+          /* En este caso no existen solicitudes por invitacion, atendera la que mas tiempo lleve. */
             for(i=0;i<numSolicitudes;i++){
                 if(listaDeUsuarios[i].atendido==0 && listaAtendedores[identificadorAtendedor].atendiendo==0){
-                    printf("VA A ATENDER UN INVITACIONES LA SOLICITUD %d, AUNQUE NO ES DE SU INCUMBENCIA\n", i);
-                    int numAle = calculaAleatorios(0,100);
-                    int tiempoDormir;
-                            /* Calculamos el tipo de atencion*/
-                    if(numAle<70){
-                        tiempoDormir = calculaAleatorios(1,4);
-                        sleep(tiempoDormir);
-                        printf("La solicitud_%d tiene todo en orden, atencion correcta. \n",i+1);
-                        sprintf(mensajeLog,"La solicitud_%d tiene todo en orden, atencion correcta.",i+1);
-                        listaDeUsuarios[i].tipoAtencion=0;
-                                    //pthread_mutex_unlock(&mutexSolicitudes);
-                            /* Despues puede solicitar o no entrar en una actividad cultural */
-                    } else if(numAle<90) {
-                        tiempoDormir = calculaAleatorios(2,6);
-                        sleep(tiempoDormir);
-                        printf("La solicitud_%d tiene errores en los datos personales, atencion correcta. \n",i+1);
-                        sprintf(mensajeLog,"La solicitud_%d tiene errores en los datos personales, atencion correcta.",i+1);
-                        listaDeUsuarios[i].tipoAtencion=1;
-                                    //pthread_mutex_unlock(&mutexSolicitudes);
-                            /*Despues puede participar o no en una actividad cultural*/
-                    } else {
-                        tiempoDormir = calculaAleatorios(6,10);
-                        sleep(tiempoDormir);
-                        printf("La solicitud_%d se corresponde con un usuario con antecedentes, atencion correcta.\n",i+1);
-                        sprintf(mensajeLog,"La solicitud_%d se corresponde con un usuario con antecedentes, atencion correcta.",i+1);
-                        listaDeUsuarios[i].tipoAtencion=2;
-                                //pthread_mutex_unlock(&mutexSolicitudes);
-                    }
-                    
+                    printf("VA A ATENDER UN INVITACIONES LA SOLICITUD %d, AUNQUE NO ES DE SU INCUMBENCIA\n", i); //TODO printf debug
+                      /* Cambiamos el flag de atendiendo del atendedor. */
+                      listaAtendedores[identificadorAtendedor].atendiendo=1;
+                      listaAtendedores[identificadorAtendedor].solAtendidas++;
 
-                    /* Log del momento de fin de atencion */
-                    printf("La solicitud_%d ha sido atendida \n", i+1);
-                    sprintf(mensaje, "La solicitud_%d ha sido atendida", i+1);
-                    escribirEnLog(idAtendedor, mensaje);
-                    /* Log de como ha sido la atencion*/                              
-                    escribirEnLog(idAtendedor, mensajeLog);
+                          /* Calculamos el tipo de atencion. */
+                          int numAle = calculaAleatorios(0,100);
 
-                    /* Se cambia el flag de atendido*/
-                    listaDeUsuarios[i].atendido=1;
+                      /* Primer caso, 70% de que la solicitud tenga todo en orden. */
+                      if(numAle < 70){
+                          sleep(calculaAleatorios(1,4));
+                          sprintf(mensajeLog,"La solicitud_%d tiene todo en orden.", i+1);
+                          printf("La solicitud_%d tiene todo en orden.\n", i+1);
+                          listaDeUsuarios[i].tipoAtencion=0;
+                      /* Segundo caso, 20% de que la solicitud tenga algún error en los datos personales. */
+                      } else if(numAle < 90) {
+                          sleep(calculaAleatorios(2,6));
+                          sprintf(mensajeLog,"La solicitud_%d tiene errores en los datos personales.",i+1);
+                          printf("La solicitud_%d tiene errores en los datos personales.\n",i+1);
+                          listaDeUsuarios[i].tipoAtencion=1;
+                      /* Tercer y ultimo caso, 10% de que se corresponda con un usuario con antecedentes. */
+                      } else {
+                          sleep(calculaAleatorios(6,10));
+                          sprintf(mensajeLog,"La solicitud_%d se corresponde con un usuario con antecedentes.",i+1);
+                          printf("La solicitud_%d se corresponde con un usuario con antecedentes.\n",i+1);
+                          listaDeUsuarios[i].tipoAtencion=2;
+                      }
 
-                    /* Cambiamos el flag de atendido del atendedor*/
-                    listaAtendedores[identificadorAtendedor].atendiendo=1;
-                    listaAtendedores[identificadorAtendedor].solAtendidas++;
 
-                    pthread_mutex_unlock(&mutexSolicitudes);
+                      /* Log del momento de fin de atencion. */
+                      printf("La solicitud_%d ha sido atendida correctamente.\n", i+1);
+                      sprintf(mensaje, "La solicitud_%d ha sido atendida correctamente", i+1);
+                      escribirEnLog(idAtendedor, mensaje);
+                      /* Log de como ha sido la atencion. */                              
+                      escribirEnLog(idAtendedor, mensajeLog);
 
-                    if(listaAtendedores[0].solAtendidas != 0){
-                        if(listaAtendedores[0].solAtendidas%5 == 0){
-                                      /* Se registra la entrada al cafe */
-                            printf("El atendedor de invitaciones se va a tomar cafe. \n");
-                            sprintf(tomarCafe, "El atendedor de invitaciones se va a tomar cafe.");
-                            escribirEnLog(idAtendedor, tomarCafe);
+                      /* Se cambia el flag de atendido de la solicitud y se desbloquea el mutex. */
+                      listaDeUsuarios[i].atendido=1;
+                      pthread_mutex_unlock(&mutexSolicitudes);
 
-                                      /* Duerme 10 segundos */
-                            sleep(10);
+                        /* Comprobacion si le toca tomar cafe. */
+                      if(listaAtendedores[0].solAtendidas != 0){
+                          if(listaAtendedores[0].solAtendidas%5 == 0){
+                                          /* Se registra la entrada al cafe. */
+                              printf("El atendedor de invitaciones se va a tomar cafe. \n");
+                              sprintf(tomarCafe, "El atendedor de invitaciones se va a tomar cafe.");
+                              escribirEnLog(idAtendedor, tomarCafe);
 
-                                      /* Se registra la salida al café */
-                            printf("El atendedor de invitaciones regresa de tomar cafe. \n");
-                            sprintf(acabaCafe, "El atendedor de invitaciones regresa de tomar cafe.");
-                            escribirEnLog(idAtendedor, acabaCafe);
-                        }
-                    }
+                              /* Duerme 10 segundos */
+                              sleep(10);
+
+                              /* Se registra la salida al cafe. */
+                              printf("El atendedor de invitaciones regresa de tomar cafe. \n");
+                              sprintf(acabaCafe, "El atendedor de invitaciones regresa de tomar cafe.");
+                              escribirEnLog(idAtendedor, acabaCafe);
+                          }
+                      }
                 }
             }
-
+        /* En caso de que no encuentre ninguna solicitud que atender libera el mutex. */
             pthread_mutex_unlock(&mutexSolicitudes);                    
-                //printf("Salgo del for2\n");
-                /*Se comprueba si al atendedor le toca atender tomar cafe*/
-            
             break;
+            /* Caso de que sea un atendedor de tipo QR. */
             case 1:
-                  //printf("Tipo: %d\n",listaDeUsuarios[i].tipo);
-                  //printf("Atendido: %d\n",listaDeUsuarios[i].atendido);
-                  //printf("Atendiendo xddd: %d\n",listaAtendedores[identificadorAtendedor].atendiendo);
-                    //printf("El de QR se pone al currele.\n");
-            /* Atendedor de tipo QR. */
-                        //printf("El de QU ERRE espera el mutex XDDDD\n");
+            /* Se espera al mutex para empezar a revisar las solicitudes. */
             pthread_mutex_lock(&mutexSolicitudes);
-            //printf("El de QU ERRE tiene el mutex XDDDD\n");
             for(i=0;i<numSolicitudes;i++){
-                    /* Se comprueba que el atendedor puede atender dicha solicitud. */
+                /* Se comprueba que el atendedor puede atender dicha solicitud y que esta es de tipo QR. */
                 if(listaDeUsuarios[i].tipo==1 && listaDeUsuarios[i].atendido==0 && listaAtendedores[identificadorAtendedor].atendiendo==0){
-                    int numAle = calculaAleatorios(0,100);
-                    int tiempoDormir;
-                            /* Calculamos el tipo de atencion*/
-                    if(numAle<70){
-                        tiempoDormir = calculaAleatorios(1,4);
-                        sleep(tiempoDormir);
-                        printf("La solicitud_%d tiene todo en orden, atencion correcta.\n",i+1);
-                        sprintf(mensajeLog,"La solicitud_%d tiene todo en orden, atencion correcta.",i+1);
-                        listaDeUsuarios[i].tipoAtencion=0;
-                                    //pthread_mutex_unlock(&mutexSolicitudes);
-                                    /* Despues puede solicitar o no entrar en una actividad cultural */
-                    } else if(numAle<90) {
-                        tiempoDormir = calculaAleatorios(2,6);
-                        sleep(tiempoDormir);
-                        printf("La solicitud_%d tiene errores en los datos personales, atencion correcta.\n",i+1);
-                        sprintf(mensajeLog,"La solicitud_%d tiene errores en los datos personales, atencion correcta.",i+1);
-                        listaDeUsuarios[i].tipoAtencion=1;
-                                    //pthread_mutex_unlock(&mutexSolicitudes);
-                                    /*Despues puede participar o no en una actividad cultural*/
-                    } else {
-                        tiempoDormir = calculaAleatorios(6,10);
-                        sleep(tiempoDormir);
-                        printf("La solicitud_%d se corresponde con un usuario con antecedentes, atencion correcta.\n",i+1);
-                        sprintf(mensajeLog,"La solicitud_%d se corresponde con un usuario con antecedentes, atencion correcta.",i+1);
-                        listaDeUsuarios[i].tipoAtencion=2;
-                                    //pthread_mutex_unlock(&mutexSolicitudes);
-                    }
-                    
-
-                    /* Log del momento de fin de atencion */
-                    printf("La solicitud_%d ha sido atendida\n", i+1);
-                    sprintf(mensaje, "La solicitud_%d ha sido atendida", i+1);
-                    escribirEnLog(idAtendedor, mensaje);
-                    /* Log de como ha sido la atencion*/                              
-                    escribirEnLog(idAtendedor, mensajeLog);
-
-                    /* Se cambia el flag de atendido*/
-                    listaDeUsuarios[i].atendido=1;
-
-                    /* Cambiamos el flag de atendido del atendedor*/
+                  
+                  printf("VA A ATENDER UN QR UNA DE LAS SUYAS.\n"); //TODO printf debug
+                    /* Cambiamos el flag de atendiendo del atendedor. */
                     listaAtendedores[identificadorAtendedor].atendiendo=1;
                     listaAtendedores[identificadorAtendedor].solAtendidas++;
+                  
+                    /* Calculamos el tipo de atencion. */
+                        int numAle = calculaAleatorios(0,100);
+    
+                    /* Primer caso, 70% de que la solicitud tenga todo en orden. */
+                    if(numAle < 70){
+                        sleep(calculaAleatorios(1,4));
+                        sprintf(mensajeLog,"La solicitud_%d tiene todo en orden.", i+1);
+                        printf("La solicitud_%d tiene todo en orden.\n", i+1);
+                        listaDeUsuarios[i].tipoAtencion=0;
+                    /* Segundo caso, 20% de que la solicitud tenga algún error en los datos personales. */
+                    } else if(numAle < 90) {
+                        sleep(calculaAleatorios(2,6));
+                        sprintf(mensajeLog,"La solicitud_%d tiene errores en los datos personales.",i+1);
+                        printf("La solicitud_%d tiene errores en los datos personales.\n",i+1);
+                        listaDeUsuarios[i].tipoAtencion=1;
+                    /* Tercer y ultimo caso, 10% de que se corresponda con un usuario con antecedentes. */
+                    } else {
+                        sleep(calculaAleatorios(6,10));
+                        sprintf(mensajeLog,"La solicitud_%d se corresponde con un usuario con antecedentes.",i+1);
+                        printf("La solicitud_%d se corresponde con un usuario con antecedentes.\n",i+1);
+                        listaDeUsuarios[i].tipoAtencion=2;
+                    }
 
+
+                    /* Log del momento de fin de atencion. */
+                    printf("La solicitud_%d ha sido atendida correctamente.\n", i+1);
+                    sprintf(mensaje, "La solicitud_%d ha sido atendida correctamente", i+1);
+                    escribirEnLog(idAtendedor, mensaje);
+                    /* Log de como ha sido la atencion. */                              
+                    escribirEnLog(idAtendedor, mensajeLog);
+
+                    /* Se cambia el flag de atendido de la solicitud y se desbloquea el mutex. */
+                    listaDeUsuarios[i].atendido=1;
                     pthread_mutex_unlock(&mutexSolicitudes);
-
+                
+                  /* Se comprueba si el atendedor de QR's tiene que ir a tomar cafe. */
                     if(listaAtendedores[1].solAtendidas != 0){
                         if(listaAtendedores[1].solAtendidas%5 == 0){
-                                      /* Se registra la entrada al cafe */
+                            /* Se registra la entrada al cafe. */
                             sprintf(tomarCafe, "El atendedor de QR se va a tomar cafe.");
                             printf("El atendedor de QR se va a tomar cafe.\n");
                             escribirEnLog(idAtendedor, tomarCafe);
 
-                                      /* Duerme 10 segundos */
+                            /* Duerme 10 segundos. */
                             sleep(10);
 
-                                      /* Se registra la salida al café */
+                            /* Se registra la salida al cafe. */
                             sprintf(acabaCafe, "El atendedor de QR regresa de tomar cafe.");
                             printf("El atendedor de QR regresa de tomar cafe.\n");
                             escribirEnLog(idAtendedor, acabaCafe);
@@ -694,67 +673,63 @@ void *accionesAtendedor(void *ptr){
                     }
                 }
             }
-
-                  //printf("Salgo del for1\n");
+            
                 /* En este caso no existen solicitudes por invitacion, se atendera la que mas tiempo lleve. */
             for(i=0;i<numSolicitudes;i++){
                 if(listaDeUsuarios[i].atendido==0 && listaAtendedores[identificadorAtendedor].atendiendo==0){
-                    printf("VA A ATENDER UNO DE QR LA SOLICITUD %d, AUNQUE NO SEA DE LAS SUYAS\n", i);
-                    int numAle = calculaAleatorios(0,100);
-                    int tiempoDormir;
-                    if(numAle<70){
-                        tiempoDormir = calculaAleatorios(1,4);
-                        sleep(tiempoDormir);
-                        printf("La solicitud_%d tiene todo en orden, atencion correcta.\n",i+1);
-                        sprintf(mensajeLog,"La solicitud_%d tiene todo en orden, atencion correcta.",i+1);
+                    printf("VA A ATENDER UNO DE QR LA SOLICITUD %d, AUNQUE NO SEA DE LAS SUYAS\n", i); //TODO PRINT DEBUG
+                  
+                  /* Cambiamos el flag de atendiendo del atendedor. */
+                  listaAtendedores[identificadorAtendedor].atendiendo=1;
+                  listaAtendedores[identificadorAtendedor].solAtendidas++;
+                  
+                    /* Calculamos el tipo de atencion. */
+                        int numAle = calculaAleatorios(0,100);
+    
+                    /* Primer caso, 70% de que la solicitud tenga todo en orden. */
+                    if(numAle < 70){
+                        sleep(calculaAleatorios(1,4));
+                        sprintf(mensajeLog,"La solicitud_%d tiene todo en orden.", i+1);
+                        printf("La solicitud_%d tiene todo en orden.\n", i+1);
                         listaDeUsuarios[i].tipoAtencion=0;
-                                    //pthread_mutex_unlock(&mutexSolicitudes);
-                            /* Despues puede solicitar o no entrar en una actividad cultural */
-                    } else if(numAle<90) {
-                        tiempoDormir = calculaAleatorios(2,6);
-                        sleep(tiempoDormir);
-                        printf("La solicitud_%d tiene errores en los datos personales, atencion correcta.\n",i+1);
-                        sprintf(mensajeLog,"La solicitud_%d tiene errores en los datos personales, atencion correcta.",i+1);
+                    /* Segundo caso, 20% de que la solicitud tenga algún error en los datos personales. */
+                    } else if(numAle < 90) {
+                        sleep(calculaAleatorios(2,6));
+                        sprintf(mensajeLog,"La solicitud_%d tiene errores en los datos personales.",i+1);
+                        printf("La solicitud_%d tiene errores en los datos personales.\n",i+1);
                         listaDeUsuarios[i].tipoAtencion=1;
-                                    //pthread_mutex_unlock(&mutexSolicitudes);
-                            /*Despues puede participar o no en una actividad cultural*/
+                    /* Tercer y ultimo caso, 10% de que se corresponda con un usuario con antecedentes. */
                     } else {
-                        tiempoDormir = calculaAleatorios(6,10);
-                        sleep(tiempoDormir);
-                        printf("La solicitud_%d se corresponde con un usuario con antecedentes, atencion correcta.\n",i+1);
-                        sprintf(mensajeLog,"La solicitud_%d se corresponde con un usuario con antecedentes, atencion correcta.",i+1);
-                        printf("La solicitud_%d se corresponde con un usuario con antecedentes, atencion correcta.\n",i+1);
+                        sleep(calculaAleatorios(6,10));
+                        sprintf(mensajeLog,"La solicitud_%d se corresponde con un usuario con antecedentes.",i+1);
+                        printf("La solicitud_%d se corresponde con un usuario con antecedentes.\n",i+1);
                         listaDeUsuarios[i].tipoAtencion=2;
-                                    //pthread_mutex_unlock(&mutexSolicitudes);
                     }
-                    
-                              /* Log del momento de fin de atencion */
-                    sprintf(mensaje, "La solicitud_%d ha sido atendida", i+1);
-                    printf("La solicitud_%d ha sido atendida\n", i+1);
+
+
+                    /* Log del momento de fin de atencion. */
+                    printf("La solicitud_%d ha sido atendida correctamente.\n", i+1);
+                    sprintf(mensaje, "La solicitud_%d ha sido atendida correctamente", i+1);
                     escribirEnLog(idAtendedor, mensaje);
-                        /* Log de como ha sido la atencion*/                              
+                    /* Log de como ha sido la atencion. */                              
                     escribirEnLog(idAtendedor, mensajeLog);
 
-                            /*Se cambia el flag de atendido de la solicitud*/
+                    /* Se cambia el flag de atendido de la solicitud y se desbloquea el mutex. */
                     listaDeUsuarios[i].atendido=1;
-
-                        /* Cambiamos el flag de atendido del atendedor*/
-                    listaAtendedores[identificadorAtendedor].atendiendo=1;
-                    listaAtendedores[identificadorAtendedor].solAtendidas++;
-
                     pthread_mutex_unlock(&mutexSolicitudes);
-
+                
+                  /* Se comprueba si el atendedor de QR's tiene que ir a tomar cafe. */
                     if(listaAtendedores[1].solAtendidas != 0){
                         if(listaAtendedores[1].solAtendidas%5 == 0){
-                                      /* Se registra la entrada al cafe */
+                            /* Se registra la entrada al cafe. */
                             sprintf(tomarCafe, "El atendedor de QR se va a tomar cafe.");
                             printf("El atendedor de QR se va a tomar cafe.\n");
                             escribirEnLog(idAtendedor, tomarCafe);
 
-                                      /* Duerme 10 segundos */
+                            /* Duerme 10 segundos. */
                             sleep(10);
 
-                                      /* Se registra la salida al café */
+                            /* Se registra la salida al cafe. */
                             sprintf(acabaCafe, "El atendedor de QR regresa de tomar cafe.");
                             printf("El atendedor de QR regresa de tomar cafe.\n");
                             escribirEnLog(idAtendedor, acabaCafe);
@@ -762,77 +737,68 @@ void *accionesAtendedor(void *ptr){
                     }
                 }
             }
-
+        /* Si no ha encontrado ninguna solicitud de ningun tipo libera el mutex. */
             pthread_mutex_unlock(&mutexSolicitudes);                    
-                /*Se comprueba si al atendedor le toca atender tomar cafe*/
             break;
-
-            /* Atendedor de tipo PRO */
+            
+            /* Atendedor de tipo PRO. */
             default:
-                  /* printf("Tipo: %d\n",listaDeUsuarios[i].tipo);
-                  printf("Atendido: %d\n",listaDeUsuarios[i].atendido);
-                  printf("Atendiendo xddd: %d\n",listaAtendedores[identificadorAtendedor].atendiendo); */
-                    //printf("El pro espera el mutex XD\n");
             pthread_mutex_lock(&mutexSolicitudes);
-            //printf("El pro tiene el mutex XD\n");
+            /* Recorre una sola vez las solicitudes ya que le da igual el tipo, solo busca la que mas tiempo lleve esperando. */
             for(i=0;i<numSolicitudes;i++){
                 if(listaAtendedores[identificadorAtendedor].atendiendo==0 && listaDeUsuarios[i].atendido==0){
-                    printf("VA A ATENDER UN PRO LA SOLICITUD %d\n", i);
-                    int numAle = calculaAleatorios(0,100);
-                    int tiempoDormir;
-                    if(numAle<70){
-                        tiempoDormir = calculaAleatorios(1,4);
-                        sleep(tiempoDormir);
-                        sprintf(mensajeLog,"La solicitud_%d tiene todo en orden, atencion correcta.",i+1);
-                        printf("La solicitud_%d tiene todo en orden, atencion correcta.\n",i+1);
-                        listaDeUsuarios[i].tipoAtencion=0;
-                                    //pthread_mutex_unlock(&mutexSolicitudes);
-                                /* Despues puede solicitar o no entrar en una actividad cultural */
-                    } else if(numAle<90) {
-                        tiempoDormir = calculaAleatorios(2,6);
-                        sleep(tiempoDormir);
-                        sprintf(mensajeLog,"La solicitud_%d tiene errores en los datos personales, atencion correcta.",i+1);
-                        printf("La solicitud_%d tiene errores en los datos personales, atencion correcta.\n",i+1);
-                        listaDeUsuarios[i].tipoAtencion=1;
-                                    //pthread_mutex_unlock(&mutexSolicitudes);
-                                    /*Despues puede participar o no en una actividad cultural*/
-                    } else {
-                        tiempoDormir = calculaAleatorios(6,10);
-                        sleep(tiempoDormir);
-                        sprintf(mensajeLog,"La solicitud_%d se corresponde con un usuario con antecedentes, atencion correcta.",i+1);
-                        printf("La solicitud_%d se corresponde con un usuario con antecedentes, atencion correcta.\n",i+1);
-                        listaDeUsuarios[i].tipoAtencion=2;
-                                    //pthread_mutex_unlock(&mutexSolicitudes);
-                    }
-                    
-
-                      /* Log del momento de fin de atencion */
-                    sprintf(mensaje, "La solicitud_%d ha sido atendida", i+1);
-                    printf("La solicitud_%d ha sido atendida\n", i+1);
-                    escribirEnLog(idAtendedor, mensaje);
-                      /* Log de como ha sido la atencion*/                              
-                    escribirEnLog(idAtendedor, mensajeLog);
-
-                      /* Se cambia el flag de atendido */
-                    listaDeUsuarios[i].atendido=1;
-
-                      /* Se cambia el flag de atendido del atendedor*/
+                   /* Se cambia el flag de atendiendo del atendedor. */
                     listaAtendedores[identificadorAtendedor].atendiendo=1;
                     listaAtendedores[identificadorAtendedor].solAtendidas++;
-
-                    pthread_mutex_unlock(&mutexSolicitudes);
-                            /*Se comprueba si al atendedor le toca atender tomar cafe*/
+                   
+                    printf("VA A ATENDER UN PRO LA SOLICITUD %d\n", i); //TODO printf debug
+                   
+                    int numAle = calculaAleatorios(0,100);
+                    /* Primer caso, 70% de que la solicitud tenga todo en orden. */
+                    if(numAle < 70){
+                        sleep(calculaAleatorios(1,4));
+                        sprintf(mensajeLog,"La solicitud_%d tiene todo en orden.", i+1);
+                        printf("La solicitud_%d tiene todo en orden.\n", i+1);
+                        listaDeUsuarios[i].tipoAtencion=0;
+                    /* Segundo caso, 20% de que la solicitud tenga algún error en los datos personales. */
+                    } else if(numAle < 90) {
+                        sleep(calculaAleatorios(2,6));
+                        sprintf(mensajeLog,"La solicitud_%d tiene errores en los datos personales.",i+1);
+                        printf("La solicitud_%d tiene errores en los datos personales.\n",i+1);
+                        listaDeUsuarios[i].tipoAtencion=1;
+                    /* Tercer y ultimo caso, 10% de que se corresponda con un usuario con antecedentes. */
+                    } else {
+                        sleep(calculaAleatorios(6,10));
+                        sprintf(mensajeLog,"La solicitud_%d se corresponde con un usuario con antecedentes.",i+1);
+                        printf("La solicitud_%d se corresponde con un usuario con antecedentes.\n",i+1);
+                        listaDeUsuarios[i].tipoAtencion=2;
+                    }
+                    
+                    /* Log del momento de fin de atencion. */
+                    sprintf(mensaje, "La solicitud_%d ha sido atendida correctamente.\n", i+1);
+                    printf("La solicitud_%d ha sido atendida correctamente.\n", i+1);
+                    escribirEnLog(idAtendedor, mensaje);
+                    /* Log de como ha sido la atencion. */                              
+                    escribirEnLog(idAtendedor, mensajeLog);
+                  
+                    /* Se cambia el flag de atendido de la solicitud. */
+                    listaDeUsuarios[i].atendido=1;
+            
+                  /* Se desbloquea el mutex. */
+                  pthread_mutex_unlock(&mutexSolicitudes);
+                            
+                  /* Se comprueba si al atendedor le toca atender tomar cafe. */
                     if(listaAtendedores[identificadorAtendedor].solAtendidas != 0){
                         if(listaAtendedores[identificadorAtendedor].solAtendidas%5 == 0){
-                                        /* Se registra la entrada al cafe */
+                            /* Se registra la entrada al cafe. */
                             sprintf(tomarCafe, "El atendedor pro se va a tomar cafe.");
                             printf("El atendedor pro se va a tomar cafe.\n");
                             escribirEnLog(idAtendedor, tomarCafe);
 
-                                        /* Duerme 10 segundos */
+                            /* Duerme 10 segundos. */
                             sleep(10);
 
-                                        /* Se registra la salida al café */
+                            /* Se registra la salida al cafe. */
                             sprintf(acabaCafe, "El atendedor pro regresa de tomar cafe.");
                             printf("El atendedor pro regresa de tomar cafe.\n");
                             escribirEnLog(idAtendedor, acabaCafe);
@@ -840,12 +806,14 @@ void *accionesAtendedor(void *ptr){
                     }
                 }
             }
-
+        
+            /* Si no ha encontrado ninguna solicitud disponible libera el mutex. */
             pthread_mutex_unlock(&mutexSolicitudes);    
         }
-        /* Se libera al atendedor para que puede atender mas solicitudes */
+        /* Se libera al atendedor para que puede atender mas solicitudes. */
         listaAtendedores[identificadorAtendedor].atendiendo=0;
     }
+                   
 }
 
 /* Funcion accionesCoordinadorSocial: se encarga de gestionar las actividades sociales*/
@@ -855,10 +823,10 @@ void *accionesCoordinadorSocial(void *ptr){
     sprintf(idCoordinador,"Coordinador_1: ");
 
     while(TRUE){
-      	printf("INTENTO COGER EL MUTEX\n");
+        printf("INTENTO COGER EL MUTEX\n");
             /* Espera a que le avisen de que puede iniciar */
             pthread_mutex_lock(&mutexListaActividad);
-      	printf("EYEYEY\n");
+        printf("EYEYEY\n");
             if(contadorActividad == 4){
                 //pthread_mutex_lock(&mutexListaActividad);
                 //printf("BLOQUEAMOS MUTEX LISTA");
@@ -868,18 +836,21 @@ void *accionesCoordinadorSocial(void *ptr){
                 escribirEnLog(idCoordinador, mensajeLog);
                 printf("SEMOS 4.\n"); //TODO Borrar este print post depuracion
                 printf("La actividad comienza.\n");
+                
                 pthread_cond_signal(&condicionIniciarActividad);
-                //TODO duda de si usar el join o un wait
+                
+                //TODO duda de si usar el join o un waitjdjdj
+                printf("EL CORDINADOR ESPERA A ACABAR ACTIVIDAD\n");
                 pthread_cond_wait(&condicionAcabarActividad,&mutexListaActividad);
                 sprintf(mensajeLog, "La actividad ha terminado.");
                 escribirEnLog(idCoordinador, mensajeLog);
-                printf("La actividad ha terminado\n");
+                printf("La actividad ha terminado \n");
                 /* Reabre la lista para que mas solicitudes puedan intentar entrar */
                 pthread_mutex_unlock(&mutexListaActividad);            
             } else{
-              	printf("Desbloqueo el mutex\n");
+                printf("Desbloqueo el mutex\n");
                   pthread_mutex_unlock(&mutexListaActividad);
-                  sleep(1);
+                  sleep(3);
             }   
     }
 }
@@ -925,8 +896,8 @@ void llegaCambioValores(int s){
     int i;
     if(valorACambiar == 1){
         printf("Valor de las solicitudes incrementados en %d hasta %d.\n", nuevoValor, numSolicitudes);
-      	//TODO HAbria que incrementar numSOlicitudes bloqueando colaSOlicitudes
-      	numSolicitudes += nuevoValor;
+        //TODO HAbria que incrementar numSOlicitudes bloqueando colaSOlicitudes
+        numSolicitudes += nuevoValor;
     } else{
         numAtendedores += nuevoValor;
         printf("Valor de los atendedores incrementados en %d hasta %d.\n", nuevoValor, numAtendedores);
@@ -1011,5 +982,4 @@ void escribirEnLog(char * id , char * mensaje){
     /* Se libera el mutex para que otros hilos puedan escribir en el log. */
     pthread_mutex_unlock(&mutexLog);
 }
-
 
