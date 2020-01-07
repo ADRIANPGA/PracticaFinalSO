@@ -1,12 +1,13 @@
 #!/bin/bash
 
 echo 
-echo Practica Final SSOO 2019-2020
+echo Practica Final SSOO 2019-2020.
 echo 
 echo Adrián Pérez García
 echo Diego Fernandez Velasco
 echo Pablo de la Hera Martinez
 echo Pablo Javier Barrio Navarro
+
 
 
 if test -f PracticaFinal.c
