@@ -365,8 +365,8 @@ void *accionesSolicitud(void *ptr){
             /* Solicitud que llega con errores por antecedentes. */
 			case 2:
             /* Escribimos en el log que el usuario no puede participar y es expulsado. */
-			printf("La solicitud_%d no puede pertenecer a una actividad cultural. Es expulsado!\n", identificadorSolicitud);
-			sprintf(mensajeLog,"El usuario no puede pertenecer a una actividad cultural. Es expulsado!");
+			printf("La solicitud_%d no puede pertenecer a una actividad cultural. ¡Es expulsado!\n", identificadorSolicitud);
+			sprintf(mensajeLog,"El usuario no puede pertenecer a una actividad cultural. ¡Es expulsado!");
 			escribirEnLog(idSolicitud,mensajeLog);
 			compactarArray((intptr_t)ptr);
 			pthread_mutex_unlock(&mutexSolicitudes);
@@ -429,12 +429,13 @@ void *accionesSolicitud(void *ptr){
 			pthread_mutex_lock(&mutexSolicitudes);
 			listaActividad[contadorActividad]=listaDeUsuarios[(intptr_t)ptr];
 			compactarArray((intptr_t)ptr);
-			pthread_mutex_unlock(&mutexSolicitudes);
 			pthread_mutex_unlock(&mutexListaActividad);
 
-			printf("La solicitud %d esta preparado para iniciar actividad\n", listaActividad[contadorActividad].idSolicitud);
+			int idSolicitudEnEspera = listaActividad[contadorActividad].idSolicitud;
+			printf("La solicitud %d esta preparado para iniciar actividad\n", idSolicitudEnEspera);
 			sprintf(mensajeLog, "Esta preparado para iniciar actividad");
 			escribirEnLog(idSolicitud, mensajeLog);
+			pthread_mutex_unlock(&mutexSolicitudes);
 			contadorActividad++;
 
             /* Bucle while permite retener a los hilos hasta que llegue el ultimo. */
@@ -505,13 +506,17 @@ void *accionesAtendedor(void *ptr){
 			sprintf(idAtendedor, "Atendedor_%d", identificadorAtendedor+1);
             /* Se buscan solicitudes de tipo 0 (Invitacion). */
 			for(i=0;i<numSolicitudes;i++){
+
+				identificadorAtendedor = (intptr_t)ptr;
+				sprintf(idAtendedor, "Atendedor_%d", identificadorAtendedor+1);
+
 				if(listaDeUsuarios[i].tipo==0 && listaDeUsuarios[i].atendido==0 && listaAtendedores[identificadorAtendedor].atendiendo==0){
                     /* Cambiamos el flag de atendiendo del atendedor. */
 					listaAtendedores[identificadorAtendedor].atendiendo=1;
 					listaAtendedores[identificadorAtendedor].solAtendidas++;
 
                     /* Calculamos el tipo de atencion. */
-					int num1Ale = calculaAleatorios(0,100);
+					int numAle = calculaAleatorios(0,100);
 
                     /* Primer caso, 70% de que la solicitud tenga todo en orden. */
 					if(numAle < 70){
@@ -569,6 +574,10 @@ void *accionesAtendedor(void *ptr){
 
             /* En este caso no existen solicitudes por invitacion, atendera la que mas tiempo lleve. */
 			for(i=0;i<numSolicitudes;i++){
+
+				identificadorAtendedor = (intptr_t)ptr;
+				sprintf(idAtendedor, "Atendedor_%d", identificadorAtendedor+1);
+
 				if(listaDeUsuarios[i].atendido==0 && listaAtendedores[identificadorAtendedor].atendiendo==0){
                     /* Cambiamos el flag de atendiendo del atendedor. */
 					listaAtendedores[identificadorAtendedor].atendiendo=1;
@@ -648,6 +657,9 @@ void *accionesAtendedor(void *ptr){
                 /* Se comprueba que el atendedor puede atender dicha solicitud y que esta es de tipo QR. */
 				if(listaDeUsuarios[i].tipo==1 && listaDeUsuarios[i].atendido==0 && listaAtendedores[identificadorAtendedor].atendiendo==0){
 
+					identificadorAtendedor = (intptr_t)ptr;
+					sprintf(idAtendedor, "Atendedor_%d", identificadorAtendedor+1);
+
                     /* Cambiamos el flag de atendiendo del atendedor. */
 					listaAtendedores[identificadorAtendedor].atendiendo=1;
 					listaAtendedores[identificadorAtendedor].solAtendidas++;
@@ -712,6 +724,8 @@ void *accionesAtendedor(void *ptr){
             /* En este caso no existen solicitudes por invitacion, se atendera la que mas tiempo lleve. */
 			for(i=0;i<numSolicitudes;i++){
 				if(listaDeUsuarios[i].atendido==0 && listaAtendedores[identificadorAtendedor].atendiendo==0){
+					identificadorAtendedor = (intptr_t)ptr;
+					sprintf(idAtendedor, "Atendedor_%d", identificadorAtendedor+1);
 
                     /* Cambiamos el flag de atendiendo del atendedor. */
 					listaAtendedores[identificadorAtendedor].atendiendo=1;
@@ -781,10 +795,10 @@ void *accionesAtendedor(void *ptr){
             /* Atendedor de tipo PRO. */
 			default:
 			pthread_mutex_lock(&mutexSolicitudes);
-			identificadorAtendedor = (intptr_t)ptr;
-			sprintf(idAtendedor, "Atendedor_%d", identificadorAtendedor+1);
             /* Recorre una sola vez las solicitudes ya que le da igual el tipo, solo busca la que mas tiempo lleve esperando. */
 			for(i=0;i<numSolicitudes;i++){
+				identificadorAtendedor = (intptr_t)ptr;
+				sprintf(idAtendedor, "Atendedor_%d", identificadorAtendedor+1);
 				if(listaAtendedores[identificadorAtendedor].atendiendo==0 && listaDeUsuarios[i].atendido==0){
                    /* Se cambia el flag de atendiendo del atendedor. */
 					listaAtendedores[identificadorAtendedor].atendiendo=1;
@@ -868,9 +882,9 @@ void *accionesCoordinadorSocial(void *ptr){
 		pthread_mutex_lock(&mutexListaActividad);
 		if(contadorActividad == 4){
             /* Se escribe en el log que comienza la actividad. */
-			sprintf(mensajeLog,"La actividad comienza.");
+			sprintf(mensajeLog,"La actividad cultural comienza.");
 			escribirEnLog(idCoordinador, mensajeLog);
-			printf("La actividad comienza.\n");
+			printf("La actividad cultural comienza.\n");
 
             /* Se avisa a los usuarios que va a comenzar la actividad. */
 			pthread_cond_signal(&condicionIniciarActividad);
@@ -878,9 +892,9 @@ void *accionesCoordinadorSocial(void *ptr){
             /* El  coordinador espera a que se acabe la actividad. */
 			pthread_cond_wait(&condicionAcabarActividad,&mutexListaActividad);
             /* Se escribe en el log que finaliza la actividad. */
-			sprintf(mensajeLog, "La actividad ha terminado.");
+			sprintf(mensajeLog, "La actividad cultural ha terminado.");
 			escribirEnLog(idCoordinador, mensajeLog);
-			printf("La actividad ha terminado.\n");
+			printf("La actividad cultural ha terminado.\n");
 
             /* Reabre la lista para que mas solicitudes puedan intentar entrar. */
 			pthread_mutex_unlock(&mutexListaActividad);  
