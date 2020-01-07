@@ -200,12 +200,16 @@ int main(int argc, char const *argv[]){
     int num=1;
     
     pthread_mutex_lock(&mutexCreaHilos);
-    /* Casteamos a int el void pointer */
+  
+    /* Creamos los hilos de atendedores (por cada tipo) y casteamos a int el void pointer */
     pthread_create(&listaAtendedores[0].hiloAtendedor, NULL, accionesAtendedor, (void *)(intptr_t)tipoAt[0]);
     pthread_create(&listaAtendedores[1].hiloAtendedor, NULL, accionesAtendedor, (void *)(intptr_t)tipoAt[1]);
+  
     for(i=0;i<numAtendedores;i++){
         pthread_create(&listaAtendedores[i].hiloAtendedor, NULL, accionesAtendedor, (void *)(intptr_t)tipoAt[2]);
     }
+    
+    /* Creamos el hilo del coordinador y casteamos a int el void pointer */
     pthread_create(&hiloCoordinador,NULL, accionesCoordinadorSocial, (void *)(intptr_t)num);
     pthread_mutex_unlock(&mutexCreaHilos);
 
@@ -432,7 +436,7 @@ void *accionesSolicitud(void *ptr){
                     	pthread_cancel(listaActividad[i].hiloUsuario);
                     }
                     pthread_cond_signal(&condicionAcabarActividad);
-              } else if(contadorActividad == -1){
+              } else if(contadorActividad == 5){
                 pthread_exit(NULL);
             }else{
                 pthread_mutex_unlock(&mutexActividad);
@@ -852,7 +856,7 @@ void *accionesCoordinadorSocial(void *ptr){
                 /* Se avisa a los usuarios que va a comenzar la actividad. */
                 pthread_cond_signal(&condicionIniciarActividad);
 
-                printf("EL CORDINADOR ESPERA A ACABAR ACTIVIDAD\n");
+                printf("EL COORDINADOR ESPERA A ACABAR ACTIVIDAD\n");
                 pthread_cond_wait(&condicionAcabarActividad,&mutexListaActividad);
                 sprintf(mensajeLog, "La actividad ha terminado.");
                 escribirEnLog(idCoordinador, mensajeLog);
@@ -911,8 +915,9 @@ void llegaCambioValores(int s){
     int i;
     if(valorACambiar == 1){
         printf("Valor de las solicitudes incrementados en %d hasta %d.\n", nuevoValor, numSolicitudes);
-        //TODO HAbria que incrementar numSOlicitudes bloqueando colaSOlicitudes
+        pthread_mutex_lock(&mutexColaSolicitudes);
         numSolicitudes += nuevoValor;
+    		pthread_mutex_unlock(&mutexColaSolicitudes);
     } else{
         numAtendedores += nuevoValor;
         printf("Valor de los atendedores incrementados en %d hasta %d.\n", nuevoValor, numAtendedores);
@@ -957,13 +962,16 @@ void llegaFinalizacion(int s){
     	
   	while(TRUE){
         if(contadorSolicitudes == 0){
+          	/* Si ya no quedan solicitudes en el sistema se liberan los punteros. */
           	free(listaAtendedores);
     		free(listaDeUsuarios);
-          	/* Se mata al hilo coordinador */
+          
+          	/* Se mata al hilo coordinador. */
   		pthread_cancel(hiloCoordinador);
           	sprintf(mensajeLog, "Saliendo del programa.");
     		printf("Saliendo del programa.\n");
     		escribirEnLog("FIN", mensajeLog);
+          	/* Hasta la vista. */
           	exit(0);
         }
         else{
@@ -1013,4 +1021,5 @@ void escribirEnLog(char * id , char * mensaje){
     /* Se libera el mutex para que otros hilos puedan escribir en el log. */
     pthread_mutex_unlock(&mutexLog);
 }
+
 
