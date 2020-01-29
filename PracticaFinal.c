@@ -28,6 +28,7 @@ FILE *logFile;
 
 int numSolicitudes;
 int numAtendedores;
+int estaTomandoCafe;
 
 int contadorAtendedor;
 int contadorSolicitudes;
@@ -76,6 +77,7 @@ pthread_mutex_t mutexActividad;
 pthread_mutex_t mutexColaAtendedores;
 pthread_mutex_t mutexListaActividad;
 pthread_mutex_t mutexAcabarActividad;
+pthread_mutex_t mutexTomaCafe;
 
 /* Variables condicion. */
 pthread_cond_t condicionIniciarActividad;
@@ -86,6 +88,7 @@ int main(int argc, char const *argv[]){
 	printf("-----------------------------------------------BENVINGUTS A L'TSUNAMI DEMOCRÀTIC LLIONÉS-----------------------------------------------\n");
 	numSolicitudes = 15;
 	numAtendedores = 1;
+
     /* Switch de comprobacion de los argumentos iniciales (Parte extra de parametros estaticos). */
 	switch(argc){
 		case 1:
@@ -175,6 +178,7 @@ int main(int argc, char const *argv[]){
 	if (pthread_mutex_init(&mutexColaAtendedores, NULL)!=0) exit(-1);
 	if (pthread_mutex_init(&mutexListaActividad, NULL)!=0) exit(-1);
 	if (pthread_mutex_init(&mutexAcabarActividad, NULL)!=0) exit(-1);
+	if (pthread_mutex_init(&mutexTomaCafe, NULL)!=0) exit(-1);
 
 
     /* Inicializamos las variables condicion. */
@@ -183,6 +187,7 @@ int main(int argc, char const *argv[]){
 
 	contadorSolicitudes=0;
 	numSolicitudesTotal=0;
+	estaTomandoCafe=0;
 	int tipoAt = 0;
 
     /*Incializamos los atendedores. */
@@ -557,17 +562,28 @@ void *accionesAtendedor(void *ptr){
 					if(listaAtendedores[0].solAtendidas != 0){
 						if(listaAtendedores[0].solAtendidas%5 == 0){
                             /* Se registra la entrada al cafe. */
-							printf("**El atendedor de invitaciones se va a tomar cafe.** \n");
-							sprintf(tomarCafe, "El atendedor de invitaciones se va a tomar cafe.");
-							escribirEnLog(idAtendedor, tomarCafe);
+                            pthread_mutex_lock(&mutexTomaCafe);
+                            if (estaTomandoCafe==0)
+                            {
+                            	estaTomandoCafe=1;
+                            	pthread_mutex_unlock(&mutexTomaCafe);
 
-                            /* Duerme 10 segundos */
-							sleep(10);
+                            	printf("**El atendedor de invitaciones se va a tomar cafe.** \n");
+								sprintf(tomarCafe, "El atendedor de invitaciones se va a tomar cafe.");
+								escribirEnLog(idAtendedor, tomarCafe);
 
-                            /* Se registra la salida al cafe. */
-							printf("**El atendedor de invitaciones regresa de tomar cafe.** \n");
-							sprintf(acabaCafe, "El atendedor de invitaciones regresa de tomar cafe.");
-							escribirEnLog(idAtendedor, acabaCafe);
+	                            /* Duerme 10 segundos */
+								sleep(10);
+
+	                            /* Se registra la salida al cafe. */
+								printf("**El atendedor de invitaciones regresa de tomar cafe.** \n");
+								sprintf(acabaCafe, "El atendedor de invitaciones regresa de tomar cafe.");
+								escribirEnLog(idAtendedor, acabaCafe);
+								pthread_mutex_lock(&mutexTomaCafe);
+								estaTomandoCafe=0;
+	                        }
+	                        pthread_mutex_unlock(&mutexTomaCafe);
+							
 						}
 					}
 				}
@@ -626,18 +642,27 @@ void *accionesAtendedor(void *ptr){
 					if(listaAtendedores[0].solAtendidas != 0){
 						if(listaAtendedores[0].solAtendidas%5 == 0){
 
-                            /* Se registra la entrada al cafe. */
-							printf("**El atendedor de invitaciones se va a tomar cafe.**\n");
-							sprintf(tomarCafe, "El atendedor de invitaciones se va a tomar cafe.");
-							escribirEnLog(idAtendedor, tomarCafe);
+                            pthread_mutex_lock(&mutexTomaCafe);
+                            if (estaTomandoCafe==0)
+                            {
+                            	estaTomandoCafe=1;
+                            	pthread_mutex_unlock(&mutexTomaCafe);
 
-                            /* Duerme 10 segundos. */
-							sleep(10);
+                            	printf("**El atendedor de invitaciones se va a tomar cafe.** \n");
+								sprintf(tomarCafe, "El atendedor de invitaciones se va a tomar cafe.");
+								escribirEnLog(idAtendedor, tomarCafe);
 
-                            /* Se registra la salida al cafe. */
-							printf("**El atendedor de invitaciones regresa de tomar cafe.**\n");
-							sprintf(acabaCafe, "El atendedor de invitaciones regresa de tomar cafe.");
-							escribirEnLog(idAtendedor, acabaCafe);
+	                            /* Duerme 10 segundos */
+								sleep(10);
+
+	                            /* Se registra la salida al cafe. */
+								printf("**El atendedor de invitaciones regresa de tomar cafe.** \n");
+								sprintf(acabaCafe, "El atendedor de invitaciones regresa de tomar cafe.");
+								escribirEnLog(idAtendedor, acabaCafe);
+								pthread_mutex_lock(&mutexTomaCafe);
+								estaTomandoCafe=0;
+	                        }
+	                        pthread_mutex_unlock(&mutexTomaCafe);
 						}
 					}
 				}
@@ -706,17 +731,27 @@ void *accionesAtendedor(void *ptr){
 					if(listaAtendedores[1].solAtendidas != 0){
 						if(listaAtendedores[1].solAtendidas%5 == 0){
                             /* Se registra la entrada al cafe. */
-							sprintf(tomarCafe, "El atendedor de QR se va a tomar cafe.");
-							printf("**El atendedor de QR se va a tomar cafe.**\n");
-							escribirEnLog(idAtendedor, tomarCafe);
+							 pthread_mutex_lock(&mutexTomaCafe);
+                            if (estaTomandoCafe==0)
+                            {
+                            	estaTomandoCafe=1;
+                            	pthread_mutex_unlock(&mutexTomaCafe);
 
-                            /* Duerme 10 segundos. */
-							sleep(10);
+                            	printf("**El atendedor de invitaciones se va a tomar cafe.** \n");
+								sprintf(tomarCafe, "El atendedor de invitaciones se va a tomar cafe.");
+								escribirEnLog(idAtendedor, tomarCafe);
 
-                            /* Se registra la salida al cafe. */
-							sprintf(acabaCafe, "El atendedor de QR regresa de tomar cafe.");
-							printf("**El atendedor de QR regresa de tomar cafe.**\n");
-							escribirEnLog(idAtendedor, acabaCafe);
+	                            /* Duerme 10 segundos */
+								sleep(10);
+
+	                            /* Se registra la salida al cafe. */
+								printf("**El atendedor de invitaciones regresa de tomar cafe.** \n");
+								sprintf(acabaCafe, "El atendedor de invitaciones regresa de tomar cafe.");
+								escribirEnLog(idAtendedor, acabaCafe);
+								pthread_mutex_lock(&mutexTomaCafe);
+								estaTomandoCafe=0;
+	                        }
+	                        pthread_mutex_unlock(&mutexTomaCafe);
 						}
 					}
 				}
@@ -774,17 +809,27 @@ void *accionesAtendedor(void *ptr){
 						if(listaAtendedores[1].solAtendidas%5 == 0){
 
                             /* Se registra la entrada al cafe. */
-							sprintf(tomarCafe, "**El atendedor de QR se va a tomar cafe.**");
-							printf("El atendedor de QR se va a tomar cafe.\n");
-							escribirEnLog(idAtendedor, tomarCafe);
+							 pthread_mutex_lock(&mutexTomaCafe);
+                            if (estaTomandoCafe==0)
+                            {
+                            	estaTomandoCafe=1;
+                            	pthread_mutex_unlock(&mutexTomaCafe);
 
-                            /* Duerme 10 segundos. */
-							sleep(10);
+                            	printf("**El atendedor de invitaciones se va a tomar cafe.** \n");
+								sprintf(tomarCafe, "El atendedor de invitaciones se va a tomar cafe.");
+								escribirEnLog(idAtendedor, tomarCafe);
 
-                            /* Se registra la salida al cafe. */
-							sprintf(acabaCafe, "El atendedor de QR regresa de tomar cafe.");
-							printf("**El atendedor de QR regresa de tomar cafe.**\n");
-							escribirEnLog(idAtendedor, acabaCafe);
+	                            /* Duerme 10 segundos */
+								sleep(10);
+
+	                            /* Se registra la salida al cafe. */
+								printf("**El atendedor de invitaciones regresa de tomar cafe.** \n");
+								sprintf(acabaCafe, "El atendedor de invitaciones regresa de tomar cafe.");
+								escribirEnLog(idAtendedor, acabaCafe);
+								pthread_mutex_lock(&mutexTomaCafe);
+								estaTomandoCafe=0;
+	                        }
+	                        pthread_mutex_unlock(&mutexTomaCafe);
 						}
 					}
 				}
@@ -847,17 +892,27 @@ void *accionesAtendedor(void *ptr){
 					if(listaAtendedores[identificadorAtendedor].solAtendidas != 0){
 						if(listaAtendedores[identificadorAtendedor].solAtendidas%5 == 0){
                             /* Se registra la entrada al cafe. */
-							sprintf(tomarCafe, "El atendedor pro se va a tomar cafe.");
-							printf("**El atendedor pro se va a tomar cafe.**\n");
-							escribirEnLog(idAtendedor, tomarCafe);
+							pthread_mutex_lock(&mutexTomaCafe);
+                            if (estaTomandoCafe==0)
+                            {
+                            	estaTomandoCafe=1;
+                            	pthread_mutex_unlock(&mutexTomaCafe);
 
-                            /* Duerme 10 segundos. */
-							sleep(10);
+                            	printf("**El atendedor de invitaciones se va a tomar cafe.** \n");
+								sprintf(tomarCafe, "El atendedor de invitaciones se va a tomar cafe.");
+								escribirEnLog(idAtendedor, tomarCafe);
 
-                            /* Se registra la salida al cafe. */
-							sprintf(acabaCafe, "El atendedor pro regresa de tomar cafe.");
-							printf("**El atendedor pro regresa de tomar cafe.**\n");
-							escribirEnLog(idAtendedor, acabaCafe);
+	                            /* Duerme 10 segundos */
+								sleep(10);
+
+	                            /* Se registra la salida al cafe. */
+								printf("**El atendedor de invitaciones regresa de tomar cafe.** \n");
+								sprintf(acabaCafe, "El atendedor de invitaciones regresa de tomar cafe.");
+								escribirEnLog(idAtendedor, acabaCafe);
+								pthread_mutex_lock(&mutexTomaCafe);
+								estaTomandoCafe=0;
+	                        }
+	                        pthread_mutex_unlock(&mutexTomaCafe);
 						}
 					}
 				}
